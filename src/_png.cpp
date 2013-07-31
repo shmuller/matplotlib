@@ -481,18 +481,23 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
             throw Py::MemoryError("Could not allocate image array");
         }
 
+        int stride0 = PyArray_STRIDE(A, 0);
+        int stride1 = PyArray_STRIDE(A, 1);
+        int stride2 = PyArray_STRIDE(A, 2);
+        char *data = (char *) PyArray_DATA(A);
+
         for (png_uint_32 y = 0; y < height; y++)
         {
             png_byte* row = row_pointers[y];
             for (png_uint_32 x = 0; x < width; x++)
             {
-                size_t offset = y * A->strides[0] + x * A->strides[1];
+                size_t offset = y * stride0 + x * stride1;
                 if (bit_depth == 16)
                 {
                     png_uint_16* ptr = &reinterpret_cast<png_uint_16*>(row)[x * dimensions[2]];
                     for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                     {
-                        *(float*)(A->data + offset + p*A->strides[2]) = (float)(ptr[p]) / max_value;
+                        *(float*)(data + offset + p*stride2) = (float)(ptr[p]) / max_value;
                     }
                 }
                 else
@@ -500,7 +505,7 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
                     png_byte* ptr = &(row[x * dimensions[2]]);
                     for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                     {
-                        *(float*)(A->data + offset + p*A->strides[2]) = (float)(ptr[p]) / max_value;
+                        *(float*)(data + offset + p*stride2) = (float)(ptr[p]) / max_value;
                     }
                 }
             }
@@ -524,12 +529,17 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
             throw Py::MemoryError("Could not allocate image array");
         }
 
+        int stride0 = PyArray_STRIDE(A, 0);
+        int stride1 = PyArray_STRIDE(A, 1);
+        int stride2 = PyArray_STRIDE(A, 2);
+        char *data = (char *) PyArray_DATA(A);
+
         for (png_uint_32 y = 0; y < height; y++)
         {
             png_byte* row = row_pointers[y];
             for (png_uint_32 x = 0; x < width; x++)
             {
-                size_t offset = y * A->strides[0] + x * A->strides[1];
+                size_t offset = y * stride0 + x * stride1;
                 if (bit_depth == 16)
                 {
                     png_uint_16* ptr = &reinterpret_cast<png_uint_16*>(row)[x * dimensions[2]];
@@ -537,12 +547,12 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
                     if (result_bit_depth == 16) {
                         for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                         {
-                            *(png_uint_16*)(A->data + offset + p*A->strides[2]) = ptr[p];
+                            *(png_uint_16*)(data + offset + p*stride2) = ptr[p];
                         }
                     } else {
                         for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                         {
-                            *(png_byte*)(A->data + offset + p*A->strides[2]) = ptr[p] >> 8;
+                            *(png_byte*)(data + offset + p*stride2) = ptr[p] >> 8;
                         }
                     }
                 }
@@ -552,12 +562,12 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
                     if (result_bit_depth == 16) {
                         for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                         {
-                            *(png_uint_16*)(A->data + offset + p*A->strides[2]) = ptr[p];
+                            *(png_uint_16*)(data + offset + p*stride2) = ptr[p];
                         }
                     } else {
                         for (png_uint_32 p = 0; p < (png_uint_32)dimensions[2]; p++)
                         {
-                            *(png_byte*)(A->data + offset + p*A->strides[2]) = ptr[p];
+                            *(png_byte*)(data + offset + p*stride2) = ptr[p];
                         }
                     }
                 }

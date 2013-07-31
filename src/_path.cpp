@@ -638,8 +638,8 @@ _path_module::get_path_collection_extents(const Py::Tuple& args)
         }
 
         size_t Npaths      = paths.length();
-        size_t Noffsets    = offsets->dimensions[0];
-        size_t N               = std::max(Npaths, Noffsets);
+        size_t Noffsets    = PyArray_DIM(offsets, 0);
+        size_t N           = std::max(Npaths, Noffsets);
         size_t Ntransforms = std::min(transforms_obj.length(), N);
         size_t i;
 
@@ -733,7 +733,7 @@ _path_module::point_in_path_collection(const Py::Tuple& args)
     }
 
     size_t Npaths      = paths.length();
-    size_t Noffsets    = offsets->dimensions[0];
+    size_t Noffsets    = PyArray_DIM(offsets, 0);
     size_t N           = std::max(Npaths, Noffsets);
     size_t Ntransforms = std::min(transforms_obj.length(), N);
     size_t i;
@@ -1087,13 +1087,16 @@ _path_module::clip_path_to_rect(const Py::Tuple &args)
             {
                 throw Py::MemoryError("Could not allocate result array");
             }
+
+            double *data = (double *) PyArray_DATA(pyarray);
+
             for (size_t i = 0; i < size; ++i)
             {
-                ((double *)pyarray->data)[2*i]   = (*p)[i].x;
-                ((double *)pyarray->data)[2*i+1] = (*p)[i].y;
+                data[2*i]   = (*p)[i].x;
+                data[2*i+1] = (*p)[i].y;
             }
-            ((double *)pyarray->data)[2*size]   = (*p)[0].x;
-            ((double *)pyarray->data)[2*size+1] = (*p)[0].y;
+            data[2*size]   = (*p)[0].x;
+            data[2*size+1] = (*p)[0].y;
 
             if (PyList_SetItem(py_results, p - results.begin(), (PyObject *)pyarray) == -1)
             {
@@ -1164,44 +1167,47 @@ _path_module::affine_transform(const Py::Tuple& args)
             f = *(double*)(row1);
         }
 
-        result = (PyArrayObject*)PyArray_SimpleNew
-                 (PyArray_NDIM(vertices), PyArray_DIMS(vertices), PyArray_DOUBLE);
+        // PyPy's PyArray_DIMS() is inefficient, avoid where possible
+        int nd = PyArray_NDIM(vertices);
+        size_t n = PyArray_DIM(vertices, 0);
+        npy_intp dims[2] = {n};
+        if (nd == 2) dims[1] = PyArray_DIM(vertices, 1);
+        result = (PyArrayObject*)PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
+                 
+        //result = (PyArrayObject*)PyArray_SimpleNew
+        //         (PyArray_NDIM(vertices), PyArray_DIMS(vertices), PyArray_DOUBLE);
         if (result == NULL)
         {
             throw Py::MemoryError("Could not allocate memory for path");
         }
-        if (PyArray_NDIM(vertices) == 2)
+        if (nd == 2)
         {
-            size_t n = PyArray_DIM(vertices, 0);
             char* vertex_in = PyArray_BYTES(vertices);
             double* vertex_out = (double*)PyArray_DATA(result);
             size_t stride0 = PyArray_STRIDE(vertices, 0);
             size_t stride1 = PyArray_STRIDE(vertices, 1);
-            double x;
-            double y;
-            volatile double t0;
-	    volatile double t1;
-	    volatile double t;
+            double x, y;
+            volatile double t0, t1, t;
 
             for (size_t i = 0; i < n; ++i)
             {
                 x = *(double*)(vertex_in);
                 y = *(double*)(vertex_in + stride1);
 
-		t0 = a * x;
-		t1 = c * y;
+                t0 = a * x;
+                t1 = c * y;
                 t = t0 + t1 + e;
                 *(vertex_out++) = t;
 
-		t0 = b * x;
-		t1 = d * y;
+                t0 = b * x;
+                t1 = d * y;
                 t = t0 + t1 + f;
                 *(vertex_out++) = t;
 
                 vertex_in += stride0;
             }
         }
-        else if (PyArray_DIM(vertices, 0) != 0)
+        else if (n != 0)
         {
             char* vertex_in = PyArray_BYTES(vertices);
             double* vertex_out = (double*)PyArray_DATA(result);
@@ -1672,11 +1678,9 @@ _path_module::convert_to_svg(const Py::Tuple& args)
 
     int precision = Py::Int(args[4]);
 
-    #if PY_VERSION_HEX < 0x02070000
     char format[64];
-    snprintf(format, 64, "%s.%dg", "%", precision);
-    #endif
-
+    snprintf(format, 64, "%%.%dg %%.%dg", precision, precision);
+   
     typedef agg::conv_transform<PathIterator>  transformed_path_t;
     typedef PathNanRemover<transformed_path_t> nan_removal_t;
     typedef PathClipper<nan_removal_t>         clipped_t;
@@ -1718,24 +1722,8 @@ _path_module::convert_to_svg(const Py::Tuple& args)
             *p++ = ' ';
         }
 
-        #if PY_VERSION_HEX >= 0x02070000
-        char* str;
-        str = PyOS_double_to_string(x, 'g', precision, 0, NULL);
-        p += snprintf(p, buffersize - (p - buffer), "%s", str);
-        PyMem_Free(str);
-        *p++ = ' ';
-        str = PyOS_double_to_string(y, 'g', precision, 0, NULL);
-        p += snprintf(p, buffersize - (p - buffer), "%s", str);
-        PyMem_Free(str);
-        #else
-        char str[64];
-        PyOS_ascii_formatd(str, 64, format, x);
-        p += snprintf(p, buffersize - (p - buffer), "%s", str);
-        *p++ = ' ';
-        PyOS_ascii_formatd(str, 64, format, y);
-        p += snprintf(p, buffersize - (p - buffer), "%s", str);
-        #endif
-
+        p += snprintf(p, buffersize - (p - buffer), format, x, y);
+        
         --wait;
     }
 
