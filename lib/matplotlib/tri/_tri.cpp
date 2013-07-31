@@ -1370,10 +1370,13 @@ TrapezoidMapTriFinder::find_many(const Py::Tuple& args)
                            args[0].ptr(), PyArray_DOUBLE, 0, 0);
     PyArrayObject* y = (PyArrayObject*)PyArray_ContiguousFromObject(
                            args[1].ptr(), PyArray_DOUBLE, 0, 0);
-    bool ok = (x != 0 && y != 0 && PyArray_NDIM(x) == PyArray_NDIM(y));
+    
     int ndim = PyArray_NDIM(x);
+    npy_intp dims[NPY_MAXDIMS];
+
+    bool ok = (x != 0 && y != 0 && ndim == PyArray_NDIM(y));
     for (int i = 0; ok && i < ndim; ++i)
-        ok = (PyArray_DIM(x,i) == PyArray_DIM(y,i));
+        ok = ((dims[i]=PyArray_DIM(x,i)) == (PyArray_DIM(y,i)));
 
     if (!ok) {
         Py_XDECREF(x);
@@ -1383,7 +1386,7 @@ TrapezoidMapTriFinder::find_many(const Py::Tuple& args)
 
     // Create integer array to return.
     PyArrayObject* tri = (PyArrayObject*)PyArray_SimpleNew(
-                             ndim, PyArray_DIMS(x), PyArray_INT);
+                             ndim, dims, PyArray_INT);
 
     // Fill returned array.
     double* x_ptr = (double*)PyArray_DATA(x);

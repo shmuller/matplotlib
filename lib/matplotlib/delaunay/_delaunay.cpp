@@ -6,7 +6,7 @@
 #include "VoronoiDiagramGenerator.h"
 #include "delaunay_utils.h"
 #include "natneighbors.h"
-#include "numpy/noprefix.h"
+#include "numpy/arrayobject.h"
 
 using namespace std;
 
@@ -118,7 +118,7 @@ static PyObject* getMesh(int npoints, double *x, double *y)
     int tri0, tri1, reg0, reg1;
     double tri0x, tri0y, tri1x, tri1y;
     int length, numtri, i, j;
-    intp dim[MAX_DIMS];
+    npy_intp dim[NPY_MAXDIMS];
     int *edge_db_ptr, *tri_edges_ptr, *tri_nbrs_ptr;
     double *vertices_ptr;
     VoronoiDiagramGenerator vdg;
@@ -216,7 +216,7 @@ fail:
 static PyObject *linear_planes(int ntriangles, double *x, double *y, double *z,
     int *nodes)
 {
-    intp dims[2];
+    npy_intp dims[2];
     PyObject *planes;
     int i;
     double *planes_ptr;
@@ -281,7 +281,7 @@ static PyObject *linear_interpolate_grid(double x0, double x1, int xsteps,
     int rowtri, coltri, tri;
     PyObject *z;
     double *z_ptr;
-    intp dims[2];
+    npy_intp dims[2];
 
     dims[0] = ysteps;
     dims[1] = xsteps;
@@ -449,8 +449,6 @@ fail:
     Py_XDECREF(neighbors);\
     Py_XDECREF(intz);
 
-#define PyArray_ND(arr) (((PyArrayObject*)arr)->nd)
-
 static PyObject *nn_interpolate_unstructured_method(PyObject *self, PyObject *args)
 {
     PyObject *pyx, *pyy, *pyz, *pycenters, *pynodes, *pyneighbors, *pyintx, *pyinty;
@@ -524,19 +522,23 @@ static PyObject *nn_interpolate_unstructured_method(PyObject *self, PyObject *ar
         CLEANUP
         return NULL;
     }
-    if (PyArray_ND(intx) != PyArray_ND(inty)) {
+
+    int nd = PyArray_NDIM(intx);
+    npy_intp dims[NPY_MAXDIMS];
+
+    if (nd != PyArray_NDIM(inty)) {
         PyErr_SetString(PyExc_ValueError, "intx,inty must have same shapes");
         CLEANUP
         return NULL;
     }
-    for (int i=0; i<PyArray_ND(intx); i++) {
-        if (PyArray_DIM(intx, i) != PyArray_DIM(inty, i)) {
+    for (int i=0; i<nd; i++) {
+        if ((dims[i]=PyArray_DIM(intx, i)) != (PyArray_DIM(inty, i))) {
             PyErr_SetString(PyExc_ValueError, "intx,inty must have same shapes");
             CLEANUP
             return NULL;
         }
     }
-    intz = PyArray_SimpleNew(PyArray_ND(intx), PyArray_DIMS(intx), PyArray_DOUBLE);
+    intz = PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
     if (!intz) {
         CLEANUP
         return NULL;
@@ -579,7 +581,7 @@ static PyObject *nn_interpolate_method(PyObject *self, PyObject *args)
     double x0, x1, y0, y1, defvalue;
     int xsteps, ysteps;
     int npoints, ntriangles;
-    intp dims[2];
+    npy_intp dims[2];
 
     if (!PyArg_ParseTuple(args, "ddiddidOOOOOO", &x0, &x1, &xsteps,
         &y0, &y1, &ysteps, &defvalue, &pyx, &pyy, &pyz, &pycenters, &pynodes,

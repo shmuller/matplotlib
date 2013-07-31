@@ -1535,11 +1535,11 @@ RendererAgg::_draw_path_collection_generic
     Py::Object edgecolors_arr_obj((PyObject*)edgecolors, true);
 
     size_t Npaths      = path_generator.num_paths();
-    size_t Noffsets    = offsets->dimensions[0];
+    size_t Noffsets    = PyArray_DIM(offsets, 0);
     size_t N           = std::max(Npaths, Noffsets);
     size_t Ntransforms = std::min(transforms_obj.length(), N);
-    size_t Nfacecolors = facecolors->dimensions[0];
-    size_t Nedgecolors = edgecolors->dimensions[0];
+    size_t Nfacecolors = PyArray_DIM(facecolors, 0);
+    size_t Nedgecolors = PyArray_DIM(edgecolors, 0);
     size_t Nlinewidths = linewidths.length();
     size_t Nlinestyles = std::min(linestyles_obj.length(), N);
     size_t Naa         = antialiaseds.length();
