@@ -104,7 +104,7 @@ static void flush_png_data(png_structp png_ptr)
 //Py::Object _png_module::write_png(const Py::Tuple& args)
 PyObject *write_png(PyObject *self, PyObject *_args)
 {
-    Py::Tuple args(_args);
+    const Py::Tuple args(_args);
     args.verify_length(4, 5);
 
     FILE *fp = NULL;
@@ -620,7 +620,7 @@ _read_png(const Py::Object& py_fileobj, const bool float_result,
 //_png_module::read_png_float(const Py::Tuple& args)
 PyObject *read_png_float(PyObject *self, PyObject *_args)
 {
-    Py::Tuple args(_args);
+    const Py::Tuple args(_args);
     args.verify_length(1);
     //return Py::asObject(_read_png(args[0], true));
     return _read_png(args[0], true);
@@ -637,7 +637,7 @@ PyObject *read_png_uint8(PyObject *self, PyObject *_args)
 //_png_module::read_png_int(const Py::Tuple& args)
 PyObject *read_png_int(PyObject *self, PyObject *_args)
 {
-    Py::Tuple args(_args);
+    const Py::Tuple args(_args);
     args.verify_length(1);
     //return Py::asObject(_read_png(args[0], false));
     return _read_png(args[0], false);
