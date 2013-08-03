@@ -34,7 +34,7 @@
 #ifdef _AIX
 #undef jmpbuf
 #endif
-
+/*
 // the extension module
 class _png_module : public Py::ExtensionModule<_png_module>
 {
@@ -64,6 +64,7 @@ private:
     Py::Object read_png_int(const Py::Tuple& args);
     PyObject* _read_png(const Py::Object& py_fileobj, const bool float_result, int result_bit_depth = -1);
 };
+*/
 
 static void write_png_data(png_structp png_ptr, png_bytep data, png_size_t length)
 {
@@ -100,8 +101,10 @@ static void flush_png_data(png_structp png_ptr)
 // this code is heavily adapted from the paint license, which is in
 // the file paint.license (BSD compatible) included in this
 // distribution.  TODO, add license file to MANIFEST.in and CVS
-Py::Object _png_module::write_png(const Py::Tuple& args)
+//Py::Object _png_module::write_png(const Py::Tuple& args)
+PyObject *write_png(PyObject *self, PyObject *_args)
 {
+    Py::Tuple args(_args);
     args.verify_length(4, 5);
 
     FILE *fp = NULL;
@@ -275,7 +278,8 @@ Py::Object _png_module::write_png(const Py::Tuple& args)
     if (PyErr_Occurred()) {
         throw Py::Exception();
     } else {
-        return Py::Object();
+        //return Py::Object();
+        Py_RETURN_NONE;
     }
 }
 
@@ -306,9 +310,12 @@ static void read_png_data(png_structp png_ptr, png_bytep data, png_size_t length
     _read_png_data(py_file_obj, data, length);
 }
 
+//PyObject*
+//_png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
+//                       int result_bit_depth)
 PyObject*
-_png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
-                       int result_bit_depth)
+_read_png(const Py::Object& py_fileobj, const bool float_result,
+          int result_bit_depth=-1)
 {
     png_byte header[8];   // 8 is the maximum size that can be checked
     FILE* fp = NULL;
@@ -609,25 +616,47 @@ _png_module::_read_png(const Py::Object& py_fileobj, const bool float_result,
     }
 }
 
-Py::Object
-_png_module::read_png_float(const Py::Tuple& args)
+//Py::Object
+//_png_module::read_png_float(const Py::Tuple& args)
+PyObject *read_png_float(PyObject *self, PyObject *_args)
 {
+    Py::Tuple args(_args);
     args.verify_length(1);
-    return Py::asObject(_read_png(args[0], true));
+    //return Py::asObject(_read_png(args[0], true));
+    return _read_png(args[0], true);
 }
 
-Py::Object
-_png_module::read_png_uint8(const Py::Tuple& args)
+//Py::Object
+//_png_module::read_png_uint8(const Py::Tuple& args)
+PyObject *read_png_uint8(PyObject *self, PyObject *_args)
 {
     throw Py::RuntimeError("read_png_uint8 is deprecated.  Use read_png_int instead.");
 }
 
-Py::Object
-_png_module::read_png_int(const Py::Tuple& args)
+//Py::Object
+//_png_module::read_png_int(const Py::Tuple& args)
+PyObject *read_png_int(PyObject *self, PyObject *_args)
 {
+    Py::Tuple args(_args);
     args.verify_length(1);
-    return Py::asObject(_read_png(args[0], false));
+    //return Py::asObject(_read_png(args[0], false));
+    return _read_png(args[0], false);
 }
+
+
+static PyMethodDef methods[] = {
+    {"write_png", &write_png, METH_VARARGS, 
+        "write_png(buffer, width, height, fileobj, dpi=None)"},
+    {"read_png", &read_png_float, METH_VARARGS, 
+        "read_png(fileobj)"},
+    {"read_png_float", &read_png_float, METH_VARARGS, 
+        "read_png_float(fileobj)"},
+    {"read_png_uint8", &read_png_uint8, METH_VARARGS, 
+        "read_png_uint8(fileobj)"},
+    {"read_png_int", &read_png_int, METH_VARARGS, 
+        "read_png_int(fileobj)"},
+    {NULL, NULL, 0, NULL}
+};
 
 PyMODINIT_FUNC
 #if PY3K
@@ -638,10 +667,14 @@ init_png(void)
 {
     import_array();
 
-    static _png_module* _png = NULL;
-    _png = new _png_module;
+    //static _png_module* _png = NULL;
+    //_png = new _png_module;
 
 #if PY3K
-    return _png->module().ptr();
+    //return _png->module().ptr();
+    return
 #endif
+    Py_InitModule3("_png", methods, "Module to write PNG files");
 }
+
+
