@@ -770,11 +770,12 @@ char _image_module_from_images__doc__[] =
     "return an image instance with numrows, numcols from a seq of image\n"
     "instances using alpha blending.  seq is a list of (Image, ox, oy)"
     ;
-Py::Object
-_image_module::from_images(const Py::Tuple& args)
+//Py::Object
+//_image_module::from_images(const Py::Tuple& args)
+PyObject *_from_images(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::from_images");
-
+    const Py::Tuple args(_args);
     args.verify_length(3);
 
     size_t numrows = (long)Py::Int(args[0]);
@@ -876,7 +877,8 @@ _image_module::from_images(const Py::Tuple& args)
         }
     }
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 }
 
 
@@ -888,11 +890,12 @@ char _image_module_fromarray__doc__[] =
     "be resampled using resize.  If isoutput=1, fill the output buffer.\n"
     "This is used to support raw pixel images w/o resampling"
     ;
-Py::Object
-_image_module::fromarray(const Py::Tuple& args)
+//Py::Object
+//_image_module::fromarray(const Py::Tuple& args)
+PyObject *_fromarray(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::fromarray");
-
+    const Py::Tuple args(_args);
     args.verify_length(2);
 
     Py::Object x = args[0];
@@ -1002,7 +1005,8 @@ _image_module::fromarray(const Py::Tuple& args)
     }
     buffer -= NUMBYTES;
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 }
 
 char _image_module_frombyte__doc__[] =
@@ -1013,11 +1017,12 @@ char _image_module_frombyte__doc__[] =
     "be resampled using resize.  If isoutput=1, fill the output buffer.\n"
     "This is used to support raw pixel images w/o resampling."
     ;
-Py::Object
-_image_module::frombyte(const Py::Tuple& args)
+//Py::Object
+//_image_module::frombyte(const Py::Tuple& args)
+PyObject *_frombyte(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::frombyte");
-
+    const Py::Tuple args(_args);
     args.verify_length(2);
 
     Py::Object x = args[0];
@@ -1152,7 +1157,8 @@ _image_module::frombyte(const Py::Tuple& args)
         imo->rbufIn->attach(buffer, imo->colsIn, imo->rowsIn, imo->colsIn*imo->BPP);
     }
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 }
 
 char _image_module_frombuffer__doc__[] =
@@ -1163,11 +1169,12 @@ char _image_module_frombuffer__doc__[] =
     "be resampled using resize.  If isoutput=1, fill the output buffer.\n"
     "This is used to support raw pixel images w/o resampling."
     ;
-Py::Object
-_image_module::frombuffer(const Py::Tuple& args)
+//Py::Object
+//_image_module::frombuffer(const Py::Tuple& args)
+PyObject *_frombuffer(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::frombuffer");
-
+    const Py::Tuple args(_args);
     args.verify_length(4);
 
     PyObject *bufin = new_reference_to(args[0]);
@@ -1229,7 +1236,8 @@ _image_module::frombuffer(const Py::Tuple& args)
         imo->rbufIn->attach(buffer, imo->colsIn, imo->rowsIn, imo->colsIn*imo->BPP);
     }
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 }
 
 // utilities for irregular grids
@@ -1463,11 +1471,12 @@ void _pcolor_cleanup(PyArrayObject* x, PyArrayObject* y,  PyArrayObject *d,
     return;
 }
 
-Py::Object
-_image_module::pcolor(const Py::Tuple& args)
+//Py::Object
+//_image_module::pcolor(const Py::Tuple& args)
+PyObject *_pcolor(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::pcolor");
-
+    const Py::Tuple args(_args);
 
     if (args.length() != 7)
     {
@@ -1681,7 +1690,8 @@ _image_module::pcolor(const Py::Tuple& args)
 
     _pcolor_cleanup(x, y, d, rowstarts, colstarts, acols, arows);
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 
 }
 
@@ -1711,10 +1721,12 @@ char __image_module_pcolor2__doc__[] =
     "bounds = (x_left, x_right, y_bot, y_top)\n"
     "bg = ndarray of 4 uint8 representing background rgba\n"
     ;
-Py::Object
-_image_module::pcolor2(const Py::Tuple& args)
+//Py::Object
+//_image_module::pcolor2(const Py::Tuple& args)
+PyObject *_pcolor2(PyObject *self, PyObject *_args)
 {
     _VERBOSE("_image_module::pcolor2");
+    const Py::Tuple args(_args);
 
     if (args.length() != 7)
     {
@@ -1871,9 +1883,63 @@ _image_module::pcolor2(const Py::Tuple& args)
 
     _pcolor2_cleanup(x, y, d, bg, irows, jcols);
 
-    return Py::asObject(imo);
+    //return Py::asObject(imo);
+    return imo;
 }
 
+
+static PyMethodDef methods[] = {
+    {"fromarray", &_fromarray, METH_VARARGS, "fromarray"},
+    {"frombyte", &_frombyte, METH_VARARGS, "frombyte"},
+    {"frombuffer", &_frombuffer, METH_VARARGS, "frombuffer"},
+    {"from_images", &_from_images, METH_VARARGS, "from_images"},
+    {"pcolor", &_pcolor, METH_VARARGS, "pcolor"},
+    {"pcolor2", &_pcolor2, METH_VARARGS, "pcolor2"},
+    {NULL, NULL, 0, NULL}
+};
+
+
+PyMODINIT_FUNC
+#if PY3K
+PyInit__image(void)
+#else
+init_image(void)
+#endif
+{
+    import_array();
+    Image::init_type();
+
+    PyObject *m = Py_InitModule3("_image", methods, "The _image module");
+    
+    PyObject *d = PyModule_GetDict(m);
+    PyDict_SetItemString(d, "NEAREST", PyInt_FromLong(Image::NEAREST));
+    PyDict_SetItemString(d, "BILINEAR", PyInt_FromLong(Image::BILINEAR));
+    PyDict_SetItemString(d, "BICUBIC", PyInt_FromLong(Image::BICUBIC));
+    PyDict_SetItemString(d, "SPLINE16", PyInt_FromLong(Image::SPLINE16));
+    PyDict_SetItemString(d, "SPLINE36", PyInt_FromLong(Image::SPLINE36));
+    PyDict_SetItemString(d, "HANNING", PyInt_FromLong(Image::HANNING));
+    PyDict_SetItemString(d, "HAMMING", PyInt_FromLong(Image::HAMMING));
+    PyDict_SetItemString(d, "HERMITE", PyInt_FromLong(Image::HERMITE));
+    PyDict_SetItemString(d, "KAISER", PyInt_FromLong(Image::KAISER));
+    PyDict_SetItemString(d, "QUADRIC", PyInt_FromLong(Image::QUADRIC));
+    PyDict_SetItemString(d, "CATROM", PyInt_FromLong(Image::CATROM));
+    PyDict_SetItemString(d, "GAUSSIAN", PyInt_FromLong(Image::GAUSSIAN));
+    PyDict_SetItemString(d, "BESSEL", PyInt_FromLong(Image::BESSEL));
+    PyDict_SetItemString(d, "MITCHELL", PyInt_FromLong(Image::MITCHELL));
+    PyDict_SetItemString(d, "SINC", PyInt_FromLong(Image::SINC));
+    PyDict_SetItemString(d, "LANCZOS", PyInt_FromLong(Image::LANCZOS));
+    PyDict_SetItemString(d, "BLACKMAN", PyInt_FromLong(Image::BLACKMAN));
+    
+    PyDict_SetItemString(d, "ASPECT_FREE", PyInt_FromLong(Image::ASPECT_FREE));
+    PyDict_SetItemString(d, "ASPECT_PRESERVE", PyInt_FromLong(Image::ASPECT_PRESERVE));
+    
+#if PY3K
+    return m;
+#endif
+}
+
+
+/*
 #if PY3K
 PyMODINIT_FUNC
 PyInit__image(void)
@@ -1914,3 +1980,5 @@ init_image(void)
     return _image->module().ptr();
 #endif
 }
+*/
+

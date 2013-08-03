@@ -127,7 +127,7 @@ class ImageComposite : public Py::PythonExtension<ImageComposite> {
 }
 */
 
-
+/*
 // the extension module
 class _image_module : public Py::ExtensionModule<_image_module>
 {
@@ -167,7 +167,7 @@ private:
     static char _image_module_frombyte__doc__[];
     static char _image_module_frombuffer__doc__[];
 };
-
+*/
 
 
 #endif

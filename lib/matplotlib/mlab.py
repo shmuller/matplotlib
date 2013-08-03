@@ -2304,9 +2304,15 @@ defaultformatd = {
     np.int64 : FormatInt(),
     np.float32 : FormatFloat(),
     np.float64 : FormatFloat(),
-    np.object_ : FormatObj(),
     np.string_ : FormatString(),
     }
+
+# PyPy's numpy doesn't have object_
+try:
+    defaultformatd[np.object_] = FormatObj()
+except AttributeError:
+    pass
+
 
 def get_formatd(r, formatd=None):
     'build a formatd guaranteed to have a key for every dtype name'
