@@ -2234,6 +2234,105 @@ char ft2font_new__doc__[] =
     "  postscript_name        PostScript name of the font\n"
     ;
 
+
+#define IfL PyInt_FromLong
+#define LfL PyLong_FromLong
+#define LfUL PyLong_FromUnsignedLong
+
+#define set(d, key, val) PyDict_SetItemString(d, key, val)
+
+PyMODINIT_FUNC
+#if PY3K
+PyInit_ft2font(void)
+#else
+initft2font(void)
+#endif
+{
+    FT2Image::init_type();
+    Glyph::init_type();
+    FT2Font::init_type();
+    
+    PyObject *m = Py_InitModule3("ft2font", NULL, "The ft2font module");
+
+    PyObject *d = PyModule_GetDict(m);
+  
+    Py::Object ft2font_type(FT2Font::type());
+    Py::Object ft2image_type(FT2Image::type());
+
+    Py_INCREF(ft2font_type.ptr()); 
+    Py_INCREF(ft2image_type.ptr());
+
+    set(d, "FT2Font", ft2font_type.ptr());
+    set(d, "FT2Image", ft2image_type.ptr());
+
+    set(d, "SCALABLE"             , IfL(FT_FACE_FLAG_SCALABLE));
+    set(d, "FIXED_SIZES"          , IfL(FT_FACE_FLAG_FIXED_SIZES));
+    set(d, "FIXED_WIDTH"          , IfL(FT_FACE_FLAG_FIXED_WIDTH));
+    set(d, "SFNT"                 , IfL(FT_FACE_FLAG_SFNT));
+    set(d, "HORIZONTAL"           , IfL(FT_FACE_FLAG_HORIZONTAL));
+    set(d, "VERTICAL"             , IfL(FT_FACE_FLAG_VERTICAL));
+    set(d, "KERNING"              , IfL(FT_FACE_FLAG_KERNING));
+    set(d, "FAST_GLYPHS"          , IfL(FT_FACE_FLAG_FAST_GLYPHS));
+    set(d, "MULTIPLE_MASTERS"     , IfL(FT_FACE_FLAG_MULTIPLE_MASTERS));
+    set(d, "GLYPH_NAMES"          , IfL(FT_FACE_FLAG_GLYPH_NAMES));
+    set(d, "EXTERNAL_STREAM"      , IfL(FT_FACE_FLAG_EXTERNAL_STREAM));
+    set(d, "ITALIC"               , IfL(FT_STYLE_FLAG_ITALIC));
+    set(d, "BOLD"                 , IfL(FT_STYLE_FLAG_ITALIC));
+    set(d, "KERNING_DEFAULT"      , IfL(FT_KERNING_DEFAULT));
+    set(d, "KERNING_UNFITTED"     , IfL(FT_KERNING_UNFITTED));
+    set(d, "KERNING_UNSCALED"     , IfL(FT_KERNING_UNSCALED));
+
+    set(d, "LOAD_DEFAULT"         , LfL(FT_LOAD_DEFAULT));
+    set(d, "LOAD_NO_SCALE"        , LfL(FT_LOAD_NO_SCALE));
+    set(d, "LOAD_NO_HINTING"      , LfL(FT_LOAD_NO_HINTING));
+    set(d, "LOAD_RENDER"          , LfL(FT_LOAD_RENDER));
+    set(d, "LOAD_NO_BITMAP"       , LfL(FT_LOAD_NO_BITMAP));
+    set(d, "LOAD_VERTICAL_LAYOUT" , LfL(FT_LOAD_VERTICAL_LAYOUT));
+    set(d, "LOAD_FORCE_AUTOHINT"  , LfL(FT_LOAD_FORCE_AUTOHINT));
+    set(d, "LOAD_CROP_BITMAP"     , LfL(FT_LOAD_CROP_BITMAP));
+    set(d, "LOAD_PEDANTIC"        , LfL(FT_LOAD_PEDANTIC));
+    set(d, "LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH", LfL(FT_LOAD_IGNORE_GLOBAL_ADVANCE_WIDTH));
+    set(d, "LOAD_NO_RECURSE"      , LfL(FT_LOAD_NO_RECURSE));
+    set(d, "LOAD_IGNORE_TRANSFORM", LfL(FT_LOAD_IGNORE_TRANSFORM));
+    set(d, "LOAD_MONOCHROME"      , LfL(FT_LOAD_MONOCHROME));
+    set(d, "LOAD_LINEAR_DESIGN"   , LfL(FT_LOAD_LINEAR_DESIGN));
+    
+    // These need casting because large-valued numeric literals could
+    // be either longs or unsigned longs: 
+    set(d, "LOAD_NO_AUTOHINT"     , LfUL(FT_LOAD_NO_AUTOHINT));
+    set(d, "LOAD_TARGET_NORMAL"   , LfUL(FT_LOAD_TARGET_NORMAL));
+    set(d, "LOAD_TARGET_LIGHT"    , LfUL(FT_LOAD_TARGET_LIGHT));
+    set(d, "LOAD_TARGET_MONO"     , LfUL(FT_LOAD_TARGET_MONO));
+    set(d, "LOAD_TARGET_LCD"      , LfUL(FT_LOAD_TARGET_LCD));
+    set(d, "LOAD_TARGET_LCD_V"    , LfUL(FT_LOAD_TARGET_LCD_V));
+
+    //initialize library
+    int error = FT_Init_FreeType(&_ft2Library);
+
+    if (error)
+    {
+        throw Py::RuntimeError("Could not find initialize the freetype2 library");
+    }
+
+    {
+        FT_Int major, minor, patch;
+        char version_string[64];
+
+        FT_Library_Version(_ft2Library, &major, &minor, &patch);
+        sprintf(version_string, "%d.%d.%d", major, minor, patch);
+
+        set(d, "__freetype_version__", PyString_FromString(version_string));
+    }
+
+    import_array();
+
+    #if PY3K
+    return m;
+    #endif
+}
+
+
+/*
 ft2font_module::ft2font_module()
     : Py::ExtensionModule<ft2font_module>("ft2font")
 {
@@ -2329,3 +2428,5 @@ initft2font(void)
     return ft2font->module().ptr();
     #endif
 }
+*/
+

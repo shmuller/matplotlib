@@ -169,6 +169,7 @@ private:
     static char get_path__doc__[];
 };
 
+/*
 // the extension module
 class ft2font_module : public Py::ExtensionModule<ft2font_module>
 
@@ -177,5 +178,6 @@ public:
     ft2font_module();
     virtual ~ft2font_module();
 };
+*/
 
 #endif
