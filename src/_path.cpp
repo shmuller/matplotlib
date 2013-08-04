@@ -627,7 +627,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     //Py_XDECREF(extents);
     //Py_XDECREF(minpos);
     //return result;
-    return Py_BuildValue("(OOi)", extents, minpos, changed ? 1 : 0);
+    return Py_BuildValue("(NNi)", extents, minpos, changed ? 1 : 0);
 }
 
 //Py::Object
@@ -815,6 +815,7 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     }
 
     //return result;
+    Py_INCREF(result.ptr());
     return result.ptr();
 }
 
@@ -1508,6 +1509,7 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
     _add_polygon(polygons, polygon);
 
     //return polygons;
+    Py_INCREF(polygons.ptr());
     return polygons.ptr();
 }
 
@@ -1683,7 +1685,7 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
     }
 
     //return result;
-    return Py_BuildValue("(OO)", vertices_obj, codes_obj);
+    return Py_BuildValue("(NN)", vertices_obj, codes_obj);
 }
 
 //Py::Object
