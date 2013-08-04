@@ -2593,8 +2593,10 @@ void RendererAgg::init_type()
 }
 
 
+CXX_WRAPPED_KEYWORDS(_new_renderer)
+
 static PyMethodDef methods[] = {
-    {"RendererAgg", (PyCFunction)&_new_renderer, METH_VARARGS | METH_KEYWORDS, 
+    {"RendererAgg", (PyCFunction)&CXX_new_renderer, METH_VARARGS | METH_KEYWORDS, 
         "RendererAgg(width, height, dpi)"},
     {NULL, NULL, 0, NULL}
 };

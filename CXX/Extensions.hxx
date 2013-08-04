@@ -36,6 +36,32 @@
 //-----------------------------------------------------------------------------
 #include "CXX/WrapPython.h"
 
+#define CXX_WRAPPED(fun)                                \
+PyObject *CXX##fun(PyObject *self, PyObject *args)      \
+{                                                       \
+    try                                                 \
+    {                                                   \
+        return fun(self, args);                         \
+    }                                                   \
+    catch( Py::Exception & )                            \
+    {                                                   \
+        return NULL;                                    \
+    }                                                   \
+}
+
+#define CXX_WRAPPED_KEYWORDS(fun)                                      \
+PyObject *CXX##fun(PyObject *self, PyObject *args, PyObject *kws)      \
+{                                                                      \
+    try                                                                \
+    {                                                                  \
+        return fun(self, args, kws);                                   \
+    }                                                                  \
+    catch( Py::Exception & )                                           \
+    {                                                                  \
+        return NULL;                                                   \
+    }                                                                  \
+}
+
 #if PY_MAJOR_VERSION == 2
 #include "CXX/Python2/Extensions.hxx"
 #else

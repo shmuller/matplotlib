@@ -643,17 +643,22 @@ PyObject *read_png_int(PyObject *self, PyObject *_args)
     return _read_png(args[0], false);
 }
 
+// wrap each function in a try {} catch {} block
+CXX_WRAPPED(write_png)
+CXX_WRAPPED(read_png_float)
+CXX_WRAPPED(read_png_uint8)
+CXX_WRAPPED(read_png_int)
 
 static PyMethodDef methods[] = {
-    {"write_png", &write_png, METH_VARARGS, 
+    {"write_png", &CXXwrite_png, METH_VARARGS, 
         "write_png(buffer, width, height, fileobj, dpi=None)"},
-    {"read_png", &read_png_float, METH_VARARGS, 
+    {"read_png", &CXXread_png_float, METH_VARARGS, 
         "read_png(fileobj)"},
-    {"read_png_float", &read_png_float, METH_VARARGS, 
+    {"read_png_float", &CXXread_png_float, METH_VARARGS, 
         "read_png_float(fileobj)"},
-    {"read_png_uint8", &read_png_uint8, METH_VARARGS, 
+    {"read_png_uint8", &CXXread_png_uint8, METH_VARARGS, 
         "read_png_uint8(fileobj)"},
-    {"read_png_int", &read_png_int, METH_VARARGS, 
+    {"read_png_int", &CXXread_png_int, METH_VARARGS, 
         "read_png_int(fileobj)"},
     {NULL, NULL, 0, NULL}
 };

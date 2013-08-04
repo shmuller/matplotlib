@@ -1888,13 +1888,20 @@ PyObject *_pcolor2(PyObject *self, PyObject *_args)
 }
 
 
+CXX_WRAPPED(_fromarray)
+CXX_WRAPPED(_frombyte)
+CXX_WRAPPED(_frombuffer)
+CXX_WRAPPED(_from_images)
+CXX_WRAPPED(_pcolor)
+CXX_WRAPPED(_pcolor2)
+
 static PyMethodDef methods[] = {
-    {"fromarray", &_fromarray, METH_VARARGS, "fromarray"},
-    {"frombyte", &_frombyte, METH_VARARGS, "frombyte"},
-    {"frombuffer", &_frombuffer, METH_VARARGS, "frombuffer"},
-    {"from_images", &_from_images, METH_VARARGS, "from_images"},
-    {"pcolor", &_pcolor, METH_VARARGS, "pcolor"},
-    {"pcolor2", &_pcolor2, METH_VARARGS, "pcolor2"},
+    {"fromarray", &CXX_fromarray, METH_VARARGS, "fromarray"},
+    {"frombyte", &CXX_frombyte, METH_VARARGS, "frombyte"},
+    {"frombuffer", &CXX_frombuffer, METH_VARARGS, "frombuffer"},
+    {"from_images", &CXX_from_images, METH_VARARGS, "from_images"},
+    {"pcolor", &CXX_pcolor, METH_VARARGS, "pcolor"},
+    {"pcolor2", &CXX_pcolor2, METH_VARARGS, "pcolor2"},
     {NULL, NULL, 0, NULL}
 };
 

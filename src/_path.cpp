@@ -1791,36 +1791,52 @@ PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
 }
 
 
+CXX_WRAPPED(_point_in_path)
+CXX_WRAPPED(_points_in_path)
+CXX_WRAPPED(_point_on_path)
+CXX_WRAPPED(_get_path_extents)
+CXX_WRAPPED(_update_path_extents)
+CXX_WRAPPED(_get_path_collection_extents)
+CXX_WRAPPED(_point_in_path_collection)
+CXX_WRAPPED(_path_in_path)
+CXX_WRAPPED(_clip_path_to_rect)
+CXX_WRAPPED(_affine_transform)
+CXX_WRAPPED(_count_bboxes_overlapping_bbox)
+CXX_WRAPPED(_path_intersects_path)
+CXX_WRAPPED(_convert_path_to_polygons)
+CXX_WRAPPED(_cleanup_path)
+CXX_WRAPPED(_convert_to_svg)
+
 static PyMethodDef methods[] = {
-    {"point_in_path", &_point_in_path, METH_VARARGS,
+    {"point_in_path", &CXX_point_in_path, METH_VARARGS,
          "point_in_path(x, y, path, trans)"},
-    {"points_in_path", &_points_in_path, METH_VARARGS,
+    {"points_in_path", &CXX_points_in_path, METH_VARARGS,
          "points_in_path(points, path, trans)"},
-    {"point_on_path", &_point_on_path, METH_VARARGS,
+    {"point_on_path", &CXX_point_on_path, METH_VARARGS,
          "point_on_path(x, y, r, path, trans)"},
-    {"get_path_extents", &_get_path_extents, METH_VARARGS,
+    {"get_path_extents", &CXX_get_path_extents, METH_VARARGS,
          "get_path_extents(path, trans)"},
-    {"update_path_extents", &_update_path_extents, METH_VARARGS,
+    {"update_path_extents", &CXX_update_path_extents, METH_VARARGS,
          "update_path_extents(path, trans, bbox, minpos)"},
-    {"get_path_collection_extents", &_get_path_collection_extents, METH_VARARGS,
+    {"get_path_collection_extents", &CXX_get_path_collection_extents, METH_VARARGS,
          "get_path_collection_extents(trans, paths, transforms, offsets, offsetTrans)"},
-    {"point_in_path_collection", &_point_in_path_collection, METH_VARARGS,
+    {"point_in_path_collection", &CXX_point_in_path_collection, METH_VARARGS,
          "point_in_path_collection(x, y, r, trans, paths, transforms, offsets, offsetTrans, filled)"},
-    {"path_in_path", &_path_in_path, METH_VARARGS,
+    {"path_in_path", &CXX_path_in_path, METH_VARARGS,
          "path_in_path(a, atrans, b, btrans)"},
-    {"clip_path_to_rect", &_clip_path_to_rect, METH_VARARGS,
+    {"clip_path_to_rect", &CXX_clip_path_to_rect, METH_VARARGS,
          "clip_path_to_rect(path, bbox, inside)"},
-    {"affine_transform", &_affine_transform, METH_VARARGS,
+    {"affine_transform", &CXX_affine_transform, METH_VARARGS,
          "affine_transform(vertices, transform)"},
-    {"count_bboxes_overlapping_bbox", &_count_bboxes_overlapping_bbox, METH_VARARGS,
+    {"count_bboxes_overlapping_bbox", &CXX_count_bboxes_overlapping_bbox, METH_VARARGS,
          "count_bboxes_overlapping_bbox(bbox, bboxes)"},
-    {"path_intersects_path", &_path_intersects_path, METH_VARARGS,
+    {"path_intersects_path", &CXX_path_intersects_path, METH_VARARGS,
          "path_intersects_path(p1, p2)"},
-    {"convert_path_to_polygons", &_convert_path_to_polygons, METH_VARARGS,
+    {"convert_path_to_polygons", &CXX_convert_path_to_polygons, METH_VARARGS,
          "convert_path_to_polygons(path, trans, width, height)"},
-    {"cleanup_path", &_cleanup_path, METH_VARARGS,
+    {"cleanup_path", &CXX_cleanup_path, METH_VARARGS,
          "cleanup_path(path, trans, remove_nans, clip, snap, simplify, curves, sketch_params)"},
-    {"convert_to_svg", &_convert_to_svg, METH_VARARGS,
+    {"convert_to_svg", &CXX_convert_to_svg, METH_VARARGS,
          "convert_to_svg(path, trans, clip, simplify, precision)"},
     {NULL, NULL, 0, NULL}
 };
