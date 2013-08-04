@@ -283,6 +283,7 @@ private:
     void create_alpha_buffers();
 };
 
+/*
 // the extension module
 class _backend_agg_module : public Py::ExtensionModule<_backend_agg_module>
 {
@@ -304,7 +305,7 @@ private:
 
     Py::Object new_renderer(const Py::Tuple &args, const Py::Dict &kws);
 };
-
+*/
 
 
 #endif

@@ -2470,24 +2470,29 @@ RendererAgg::~RendererAgg()
 }
 
 /* ------------ module methods ------------- */
-Py::Object _backend_agg_module::new_renderer(const Py::Tuple &args,
-        const Py::Dict &kws)
+//Py::Object _backend_agg_module::new_renderer(const Py::Tuple &args,
+//        const Py::Dict &kws)
+PyObject* _new_renderer(PyObject *self, PyObject *_args, PyObject *_kws)
 {
+    const Py::Tuple args(_args);
 
     if (args.length() != 3)
     {
         throw Py::RuntimeError("Incorrect # of args to RendererAgg(width, height, dpi).");
     }
 
-    int debug;
-    if (kws.hasKey("debug"))
-    {
-        debug = Py::Int(kws["debug"]);
-    }
-    else
-    {
-        debug = 0;
-    }
+    PyObject *obj = (_kws) ? PyDict_GetItemString(_kws, "debug") : NULL;
+    int debug = (obj) ? PyInt_AsLong(obj) : 0;
+    
+    //int debug;
+    //if (kws.hasKey("debug"))
+    //{
+    //    debug = Py::Int(kws["debug"]);
+    //}
+    //else
+    //{
+    //    debug = 0;
+    //}
 
     unsigned int width = (int)Py::Int(args[0]);
     unsigned int height = (int)Py::Int(args[1]);
@@ -2513,7 +2518,8 @@ Py::Object _backend_agg_module::new_renderer(const Py::Tuple &args,
         throw Py::RuntimeError("Could not allocate memory for image");
     }
 
-    return Py::asObject(renderer);
+    //return Py::asObject(renderer);
+    return renderer;
 }
 
 
@@ -2586,6 +2592,33 @@ void RendererAgg::init_type()
     #endif
 }
 
+
+static PyMethodDef methods[] = {
+    {"RendererAgg", (PyCFunction)&_new_renderer, METH_VARARGS | METH_KEYWORDS, 
+        "RendererAgg(width, height, dpi)"},
+    {NULL, NULL, 0, NULL}
+};
+
+
+PyMODINIT_FUNC
+#if PY3K
+PyInit__backend_agg(void)
+#else
+init_backend_agg(void)
+#endif
+{
+    import_array();
+    RendererAgg::init_type();
+    BufferRegion::init_type();
+
+#if PY3K
+    return
+#endif
+    Py_InitModule3("_backend_agg", methods, "The agg rendering backend");
+}
+
+
+/*
 PyMODINIT_FUNC
 #if PY3K
 PyInit__backend_agg(void)
@@ -2606,3 +2639,4 @@ init_backend_agg(void)
     return _backend_agg->module().ptr();
     #endif
 }
+*/
