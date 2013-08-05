@@ -184,8 +184,8 @@ class RendererAgg(RendererBase):
         yd = d * np.cos(np.deg2rad(angle))
 
         #print x, y, int(x), int(y), s
-        self._renderer.draw_text_image(
-            font.get_image(), np.round(x - xd), np.round(y + yd) + 1, angle, gc)
+        self._renderer.draw_text_image(font.get_image(), 
+                int(np.round(x - xd)), int(np.round(y + yd)) + 1, float(angle), gc)
 
     def get_text_width_height_descent(self, s, prop, ismath):
         """

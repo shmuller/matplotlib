@@ -153,9 +153,13 @@ class Path(object):
         self._update_values()
 
         if readonly:
-            self._vertices.flags.writeable = False
-            if self._codes is not None:
-                self._codes.flags.writeable = False
+            try:
+                self._vertices.flags.writeable = False
+                if self._codes is not None:
+                    self._codes.flags.writeable = False
+            except AttributeError:
+                # PyPy ndarray doesn't have flags - ignore
+                pass
             self._readonly = True
         else:
             self._readonly = False

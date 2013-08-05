@@ -24,6 +24,12 @@ import matplotlib.transforms as mtransforms
 import numpy as np
 import warnings
 
+try:
+    accumulate = np.add.accumulate
+except AttributeError:
+    def accumulate(x):
+        return np.cumsum(x, axis=0)
+
 class GridSpecBase(object):
     """
     A base class of GridSpec that specifies the geometry of the grid
@@ -101,7 +107,7 @@ class GridSpecBase(object):
             cellHeights = [cellH] * nrows
 
         sepHeights = [0] + ([sepH] * (nrows-1))
-        cellHs = np.add.accumulate(np.ravel(zip(sepHeights, cellHeights)))
+        cellHs = accumulate(np.ravel(zip(sepHeights, cellHeights)))
 
 
         # calculate accumulated widths of rows
@@ -116,7 +122,7 @@ class GridSpecBase(object):
             cellWidths = [cellW] * ncols
 
         sepWidths = [0] + ([sepW] * (ncols-1))
-        cellWs = np.add.accumulate(np.ravel(zip(sepWidths, cellWidths)))
+        cellWs = accumulate(np.ravel(zip(sepWidths, cellWidths)))
 
 
 
