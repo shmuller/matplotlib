@@ -529,7 +529,7 @@ class RendererSVG(RendererBase):
 
     def _convert_path(self, path, transform=None, clip=None, simplify=None):
         if clip:
-            clip = (0.0, 0.0, self.width, self.height)
+            clip = (0.0, 0.0, float(self.width), float(self.height))
         else:
             clip = None
         return _path.convert_to_svg(path, transform, clip, simplify, 6)

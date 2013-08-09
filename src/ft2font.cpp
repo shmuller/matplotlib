@@ -619,7 +619,7 @@ FT2Font::get_path()
 
     PyArrayObject* vertices = NULL;
     PyArrayObject* codes = NULL;
-    Py::Tuple result(2);
+    //Py::Tuple result(2);
 
     npy_intp vertices_dims[2] = {count, 2};
     vertices = (PyArrayObject*)PyArray_SimpleNew(
@@ -634,8 +634,8 @@ FT2Font::get_path()
         throw;
     }
 
-    result[0] = Py::Object((PyObject*)vertices, true);
-    result[1] = Py::Object((PyObject*)codes, true);
+    //result[0] = Py::Object((PyObject*)vertices, true);
+    //result[1] = Py::Object((PyObject*)codes, true);
 
     double* outpoints = (double *)PyArray_DATA(vertices);
     unsigned char* outcodes = (unsigned char *)PyArray_DATA(codes);
@@ -831,7 +831,8 @@ FT2Font::get_path()
         throw Py::RuntimeError("Font path size doesn't match");
     }
 
-    return result;
+    PyObject *result = Py_BuildValue("(NN)", vertices, codes);
+    return Py::Object(result);
 }
 PYCXX_NOARGS_METHOD_DECL(FT2Font, get_path)
 
