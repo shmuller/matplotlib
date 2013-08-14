@@ -1343,7 +1343,7 @@ end"""
 
     def writePath(self, path, transform, clip=False, sketch=None):
         if clip:
-            clip = (0.0, 0.0, self.width * 72, self.height * 72)
+            clip = (0.0, 0.0, float(self.width) * 72, float(self.height) * 72)
             simplify = path.should_simplify
         else:
             clip = None

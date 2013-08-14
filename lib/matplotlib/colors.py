@@ -937,15 +937,15 @@ class Normalize(object):
         '''
         Set *vmin*, *vmax* to min, max of *A*.
         '''
-        self.vmin = ma.min(A)
-        self.vmax = ma.max(A)
+        self.vmin = A.min()
+        self.vmax = A.max()
 
     def autoscale_None(self, A):
         ' autoscale only None-valued vmin or vmax'
         if self.vmin is None:
-            self.vmin = ma.min(A)
+            self.vmin = A.min()
         if self.vmax is None:
-            self.vmax = ma.max(A)
+            self.vmax = A.max()
 
     def scaled(self):
         'return true if vmin and vmax set'
@@ -1009,8 +1009,8 @@ class LogNorm(Normalize):
         Set *vmin*, *vmax* to min, max of *A*.
         '''
         A = ma.masked_less_equal(A, 0, copy=False)
-        self.vmin = ma.min(A)
-        self.vmax = ma.max(A)
+        self.vmin = A.min()
+        self.vmax = A.max()
 
     def autoscale_None(self, A):
         ' autoscale only None-valued vmin or vmax'
@@ -1018,9 +1018,9 @@ class LogNorm(Normalize):
             return
         A = ma.masked_less_equal(A, 0, copy=False)
         if self.vmin is None:
-            self.vmin = ma.min(A)
+            self.vmin = A.min()
         if self.vmax is None:
-            self.vmax = ma.max(A)
+            self.vmax = A.max()
 
 
 class SymLogNorm(Normalize):
@@ -1122,8 +1122,8 @@ class SymLogNorm(Normalize):
         """
         Set *vmin*, *vmax* to min, max of *A*.
         """
-        self.vmin = ma.min(A)
-        self.vmax = ma.max(A)
+        self.vmin = A.min()
+        self.vmax = A.max()
         self._transform_vmin_vmax()
 
     def autoscale_None(self, A):
@@ -1131,9 +1131,9 @@ class SymLogNorm(Normalize):
         if self.vmin is not None and self.vmax is not None:
             pass
         if self.vmin is None:
-            self.vmin = ma.min(A)
+            self.vmin = A.min()
         if self.vmax is None:
-            self.vmax = ma.max(A)
+            self.vmax = A.max()
         self._transform_vmin_vmax()
 
 
