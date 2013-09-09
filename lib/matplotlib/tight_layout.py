@@ -190,24 +190,27 @@ def auto_adjust_subplotpars(fig, renderer,
                   bottom=margin_bottom,
                   top=1 - margin_top)
 
+    # return a vector for *wspace* and *hspace* to enable really tight layout;
+    # GridSpec.get_grid_positions() was made to understand this
     if cols > 1:
-        hspace = max([sum(s)
-                      for i in range(rows)
-                      for s
-                      in hspaces[i * (cols + 1) + 1:(i + 1) * (cols + 1) - 1]])
-        hspace += hpad_inches / fig_width_inch
-        h_axes = ((1 - margin_right - margin_left) -
-                   hspace * (cols - 1)) / cols
+        hspace = [sum(s)
+                  for i in range(rows)
+                  for s in hspaces[i * (cols + 1) + 1:(i + 1) * (cols + 1) - 1]]
+        hcols = [max(hspace[i::cols]) for i in range(cols - 1)]
+        hcols = [h + hpad_inches / fig_width_inch for h in hcols]
 
-        kwargs["wspace"] = hspace / h_axes
+        kwargs["wspace"] = hcols
+        #h_axes = ((1 - margin_right - margin_left) - sum(hcols)) / cols
+        #kwargs["wspace"] = [h / h_axes for h in hcols]
 
     if rows > 1:
-        vspace = max([sum(s) for s in vspaces[cols:-cols]])
-        vspace += vpad_inches / fig_height_inch
-        v_axes = ((1 - margin_top - margin_bottom) -
-                  vspace * (rows - 1)) / rows
+        vspace = [sum(s) for s in vspaces[cols:-cols]]
+        vrows = [max(vspace[i * cols:(i + 1) * cols]) for i in range(rows - 1)]
+        vrows = [v + vpad_inches / fig_height_inch for v in vrows]
 
-        kwargs["hspace"] = vspace / v_axes
+        kwargs["hspace"] = vrows
+        #v_axes = ((1 - margin_top - margin_bottom) - sum(vrows)) / rows
+        #kwargs["hspace"] = [v / v_axes for v in vrows]
 
     return kwargs
 

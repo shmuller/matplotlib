@@ -37,14 +37,14 @@ class GridSpecBase(object):
     """
 
     def __init__(self, nrows, ncols,
-                 height_ratios=None, width_ratios=None):
+                 height_ratios=None, width_ratios=None, same_spacing=True):
         """
         The number of rows and number of columns of the grid need to
         be set. Optionally, the ratio of heights and widths of rows and
         columns can be specified.
         """
-        #self.figure = figure
         self._nrows , self._ncols = nrows, ncols
+        self._same_spacing = same_spacing
 
         self.set_height_ratios(height_ratios)
         self.set_width_ratios(width_ratios)
@@ -95,9 +95,18 @@ class GridSpecBase(object):
         totWidth = right-left
         totHeight = top-bottom
 
+        # tight_layout can now pass a list for hspace 
+        if hasattr(hspace, '__iter__'):
+            if self._same_spacing:
+                hspace = [max(hspace)] * (nrows - 1)
+            v_axes = (totHeight - sum(hspace)) / nrows
+            hspace = [h / v_axes for h in hspace]
+        else:
+            hspace = [hspace] * (nrows - 1)
+
         # calculate accumulated heights of columns
-        cellH = totHeight/(nrows + hspace*(nrows-1))
-        sepH = hspace*cellH
+        cellH = totHeight/(nrows + sum(hspace))
+        sepH = [h*cellH for h in hspace]
 
         if self._row_height_ratios is not None:
             netHeight = cellH * nrows
@@ -106,13 +115,22 @@ class GridSpecBase(object):
         else:
             cellHeights = [cellH] * nrows
 
-        sepHeights = [0] + ([sepH] * (nrows-1))
+        sepHeights = [0] + sepH
         cellHs = accumulate(np.ravel(zip(sepHeights, cellHeights)))
 
 
+        # tight_layout can now pass a list for wspace
+        if hasattr(wspace, '__iter__'):
+            if self._same_spacing:
+                wspace = [max(wspace)] * (ncols - 1)
+            h_axes = (totWidth - sum(wspace)) / ncols
+            wspace = [w / h_axes for w in wspace]
+        else:
+            wspace = [wspace] * (ncols - 1)
+
         # calculate accumulated widths of rows
-        cellW = totWidth/(ncols + wspace*(ncols-1))
-        sepW = wspace*cellW
+        cellW = totWidth/(ncols + sum(wspace))
+        sepW = [w*cellW for w in wspace]
 
         if self._col_width_ratios is not None:
             netWidth = cellW * ncols
@@ -121,7 +139,7 @@ class GridSpecBase(object):
         else:
             cellWidths = [cellW] * ncols
 
-        sepWidths = [0] + ([sepW] * (ncols-1))
+        sepWidths = [0] + sepW
         cellWs = accumulate(np.ravel(zip(sepWidths, cellWidths)))
 
 
@@ -195,14 +213,12 @@ class GridSpec(GridSpecBase):
 
     def __init__(self, nrows, ncols,
                  left=None, bottom=None, right=None, top=None,
-                 wspace=None, hspace=None,
-                 width_ratios=None, height_ratios=None):
+                 wspace=None, hspace=None, *args, **kwargs):
         """
         The number of rows and number of columns of the
         grid need to be set. Optionally, the subplot layout parameters
         (e.g., left, right, etc.) can be tuned.
         """
-        #self.figure = figure
         self.left=left
         self.bottom=bottom
         self.right=right
@@ -210,11 +226,7 @@ class GridSpec(GridSpecBase):
         self.wspace=wspace
         self.hspace=hspace
 
-        GridSpecBase.__init__(self, nrows, ncols,
-                              width_ratios=width_ratios,
-                              height_ratios=height_ratios)
-        #self.set_width_ratios(width_ratios)
-        #self.set_height_ratios(height_ratios)
+        GridSpecBase.__init__(self, nrows, ncols, *args, **kwargs)
 
 
     _AllowedKeys = ["left", "bottom", "right", "top", "wspace", "hspace"]
