@@ -27,8 +27,14 @@ graphics contexts must implement to serve as a matplotlib backend
 
 """
 
-from __future__ import division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange
+
 import os
+import sys
 import warnings
 import time
 import io
@@ -52,16 +58,75 @@ from matplotlib.path import Path
 from matplotlib.cbook import mplDeprecation
 
 try:
+    from importlib import import_module
+except:
+    # simple python 2.6 implementation (no relative imports)
+    def import_module(name):
+        __import__(name)
+        return sys.modules[name]
+
+try:
     from PIL import Image
     _has_pil = True
 except ImportError:
     _has_pil = False
 
-_backend_d = {}
+
+_default_filetypes = {
+    'ps': 'Postscript',
+    'eps': 'Encapsulated Postscript',
+    'pdf': 'Portable Document Format',
+    'pgf': 'PGF code for LaTeX',
+    'png': 'Portable Network Graphics',
+    'raw': 'Raw RGBA bitmap',
+    'rgba': 'Raw RGBA bitmap',
+    'svg': 'Scalable Vector Graphics',
+    'svgz': 'Scalable Vector Graphics'
+}
 
 
-def register_backend(format, backend_class):
-    _backend_d[format] = backend_class
+_default_backends = {
+    'ps': 'matplotlib.backends.backend_ps',
+    'eps': 'matplotlib.backends.backend_ps',
+    'pdf': 'matplotlib.backends.backend_pdf',
+    'pgf': 'matplotlib.backends.backend_pgf',
+    'png': 'matplotlib.backends.backend_agg',
+    'raw': 'matplotlib.backends.backend_agg',
+    'rgba': 'matplotlib.backends.backend_agg',
+    'svg': 'matplotlib.backends.backend_svg',
+    'svgz': 'matplotlib.backends.backend_svg',
+}
+
+
+def register_backend(format, backend, description):
+    """
+    Register a backend for saving to a given file format.
+
+    *format*
+        File extention
+
+    *backend*
+        Backend for handling file output (module string or canvas class)
+
+    *description*
+        Description of the file type
+    """
+    _default_backends[format] = backend
+    _default_filetypes[format] = description
+
+
+def get_registered_canvas_class(format):
+    """
+    Return the registered default canvas for given file format.
+    Handles deferred import of required backend.
+    """
+    if format not in _default_backends:
+        return None
+    backend_class = _default_backends[format]
+    if cbook.is_string_like(backend_class):
+        backend_class = import_module(backend_class).FigureCanvas
+        _default_backends[format] = backend_class
+    return backend_class
 
 
 class ShowBase(object):
@@ -76,7 +141,7 @@ class ShowBase(object):
         it is a boolean that overrides all other factors
         determining whether show blocks by calling mainloop().
         The other factors are:
-        it does not block if run inside "ipython --pylab";
+        it does not block if run inside ipython's "%pylab" mode
         it does not block in interactive mode.
         """
         managers = Gcf.get_all_fig_managers()
@@ -100,11 +165,11 @@ class ShowBase(object):
             ipython_pylab = not pyplot.show._needmain
             # IPython versions >= 0.10 tack the _needmain
             # attribute onto pyplot.show, and always set
-            # it to False, when in --pylab mode.
+            # it to False, when in %pylab mode.
             ipython_pylab = ipython_pylab and get_backend() != 'WebAgg'
             # TODO: The above is a hack to get the WebAgg backend
-            # working with `ipython --pylab` until proper integration
-            # is implemented.
+            # working with ipython's `%pylab` mode until proper
+            # integration is implemented.
         except AttributeError:
             ipython_pylab = False
 
@@ -120,22 +185,25 @@ class ShowBase(object):
         pass
 
 
-class RendererBase:
+class RendererBase(object):
     """An abstract base class to handle drawing/rendering operations.
 
-    The following methods *must* be implemented in the backend:
+    The following methods must be implemented in the backend for full
+    functionality (though just implementing :meth:`draw_path` alone would
+    give a highly capable backend):
 
     * :meth:`draw_path`
     * :meth:`draw_image`
-    * :meth:`draw_text`
-    * :meth:`get_text_width_height_descent`
+    * :meth:`draw_gouraud_triangle`
 
     The following methods *should* be implemented in the backend for
     optimization reasons:
 
+    * :meth:`draw_text`
     * :meth:`draw_markers`
     * :meth:`draw_path_collection`
     * :meth:`draw_quad_mesh`
+
     """
     def __init__(self):
         self._texmanager = None
@@ -222,7 +290,7 @@ class RendererBase:
         path_ids = []
         for path, transform in self._iter_collection_raw_paths(
                 master_transform, paths, all_transforms):
-            path_ids.append((path, transform))
+            path_ids.append((path, transforms.Affine2D(transform)))
 
         for xo, yo, path_id, gc0, rgbFace in self._iter_collection(
             gc, master_transform, all_transforms, path_ids, offsets,
@@ -311,7 +379,7 @@ class RendererBase:
         for i in xrange(N):
             path = paths[i % Npaths]
             if Ntransforms:
-                transform = all_transforms[i % Ntransforms]
+                transform = Affine2D(all_transforms[i % Ntransforms])
             yield path, transform + master_transform
 
     def _iter_collection(self, gc, master_transform, all_transforms,
@@ -375,8 +443,9 @@ class RendererBase:
                 xo, yo = toffsets[i % Noffsets]
                 if offset_position == 'data':
                     if Ntransforms:
-                        transform = (all_transforms[i % Ntransforms] +
-                                     master_transform)
+                        transform = (
+                            Affine2D(all_transforms[i % Ntransforms]) +
+                            master_transform)
                     else:
                         transform = master_transform
                     xo, yo = transform.transform_point((xo, yo))
@@ -552,7 +621,6 @@ class RendererBase:
         *ismath*
           If True, use mathtext parser. If "TeX", use *usetex* mode.
         """
-
         path, transform = self._get_text_path_transform(
             x, y, s, prop, angle, ismath)
         color = gc.get_rgb()
@@ -1444,7 +1512,7 @@ class MouseEvent(LocationEvent):
         self.dblclick = dblclick
 
     def __str__(self):
-        return ("MPL MouseEvent: xy=(%d,%d) xydata=(%s,%s) button=%d " +
+        return ("MPL MouseEvent: xy=(%d,%d) xydata=(%s,%s) button=%s " +
                 "dblclick=%s inaxes=%s") % (self.x, self.y, self.xdata,
                                             self.ydata, self.button,
                                             self.dblclick, self.inaxes)
@@ -1557,6 +1625,21 @@ class FigureCanvasBase(object):
     ]
 
     supports_blit = True
+    fixed_dpi = None
+
+    filetypes = _default_filetypes
+    if _has_pil:
+        # JPEG support
+        register_backend('jpg', 'matplotlib.backends.backend_agg',
+                         'Joint Photographic Experts Group')
+        register_backend('jpeg', 'matplotlib.backends.backend_agg',
+                         'Joint Photographic Experts Group')
+
+        # TIFF support
+        register_backend('tif', 'matplotlib.backends.backend_agg',
+                         'Tagged Image File Format')
+        register_backend('tiff', 'matplotlib.backends.backend_agg',
+                         'Tagged Image File Format')
 
     def __init__(self, figure):
         figure.set_canvas(self)
@@ -1919,157 +2002,44 @@ class FigureCanvasBase(object):
         """
         return int(self.figure.bbox.width), int(self.figure.bbox.height)
 
-    filetypes = {
-        'eps': 'Encapsulated Postscript',
-        'pdf': 'Portable Document Format',
-        'pgf': 'LaTeX PGF Figure',
-        'png': 'Portable Network Graphics',
-        'ps': 'Postscript',
-        'raw': 'Raw RGBA bitmap',
-        'rgba': 'Raw RGBA bitmap',
-        'svg': 'Scalable Vector Graphics',
-        'svgz': 'Scalable Vector Graphics'}
-
-    # All of these print_* functions do a lazy import because
-    #  a) otherwise we'd have cyclical imports, since all of these
-    #     classes inherit from FigureCanvasBase
-    #  b) so we don't import a bunch of stuff the user may never use
-
-    # TODO: these print_* throw ImportErrror when called from
-    # compare_images_decorator (decorators.py line 112)
-    # if the backend has not already been loaded earlier on.  Simple trigger:
-    # >>> import matplotlib.tests.test_spines
-    # >>> list(matplotlib.tests.test_spines.test_spines_axes_positions())[0][0]()
-
-    def print_eps(self, *args, **kwargs):
-        from backends.backend_ps import FigureCanvasPS  # lazy import
-        ps = self.switch_backends(FigureCanvasPS)
-        return ps.print_eps(*args, **kwargs)
-
-    def print_pdf(self, *args, **kwargs):
-        from backends.backend_pdf import FigureCanvasPdf  # lazy import
-        pdf = self.switch_backends(FigureCanvasPdf)
-        return pdf.print_pdf(*args, **kwargs)
-
-    def print_pgf(self, *args, **kwargs):
-        from backends.backend_pgf import FigureCanvasPgf  # lazy import
-        pgf = self.switch_backends(FigureCanvasPgf)
-        return pgf.print_pgf(*args, **kwargs)
-
-    def print_png(self, *args, **kwargs):
-        from backends.backend_agg import FigureCanvasAgg  # lazy import
-        agg = self.switch_backends(FigureCanvasAgg)
-        return agg.print_png(*args, **kwargs)
-
-    def print_ps(self, *args, **kwargs):
-        from backends.backend_ps import FigureCanvasPS  # lazy import
-        ps = self.switch_backends(FigureCanvasPS)
-        return ps.print_ps(*args, **kwargs)
-
-    def print_raw(self, *args, **kwargs):
-        from backends.backend_agg import FigureCanvasAgg  # lazy import
-        agg = self.switch_backends(FigureCanvasAgg)
-        return agg.print_raw(*args, **kwargs)
-    print_bmp = print_rgba = print_raw
-
-    def print_svg(self, *args, **kwargs):
-        from backends.backend_svg import FigureCanvasSVG  # lazy import
-        svg = self.switch_backends(FigureCanvasSVG)
-        return svg.print_svg(*args, **kwargs)
-
-    def print_svgz(self, *args, **kwargs):
-        from backends.backend_svg import FigureCanvasSVG  # lazy import
-        svg = self.switch_backends(FigureCanvasSVG)
-        return svg.print_svgz(*args, **kwargs)
-
-    if _has_pil:
-        filetypes['jpg'] = 'Joint Photographic Experts Group'
-        filetypes['jpeg'] = filetypes['jpg']
-
-        def print_jpg(self, filename_or_obj, *args, **kwargs):
-            """
-            Supported kwargs:
-
-            *quality*: The image quality, on a scale from 1 (worst) to
-                95 (best). The default is 95, if not given in the
-                matplotlibrc file in the savefig.jpeg_quality parameter.
-                Values above 95 should be avoided; 100 completely
-                disables the JPEG quantization stage.
-
-            *optimize*: If present, indicates that the encoder should
-                make an extra pass over the image in order to select
-                optimal encoder settings.
-
-            *progressive*: If present, indicates that this image
-                should be stored as a progressive JPEG file.
-            """
-            from backends.backend_agg import FigureCanvasAgg  # lazy import
-            agg = self.switch_backends(FigureCanvasAgg)
-            buf, size = agg.print_to_buffer()
-            if kwargs.pop("dryrun", False):
-                return
-            image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
-            options = cbook.restrict_dict(kwargs, ['quality', 'optimize',
-                                                   'progressive'])
-
-            if 'quality' not in options:
-                options['quality'] = rcParams['savefig.jpeg_quality']
-
-            return image.save(filename_or_obj, format='jpeg', **options)
-        print_jpeg = print_jpg
-
-        filetypes['tif'] = filetypes['tiff'] = 'Tagged Image File Format'
-
-        def print_tif(self, filename_or_obj, *args, **kwargs):
-            from backends.backend_agg import FigureCanvasAgg  # lazy import
-            agg = self.switch_backends(FigureCanvasAgg)
-            buf, size = agg.print_to_buffer()
-            if kwargs.pop("dryrun", False):
-                return
-            image = Image.frombuffer('RGBA', size, buf, 'raw', 'RGBA', 0, 1)
-            dpi = (self.figure.dpi, self.figure.dpi)
-            return image.save(filename_or_obj, format='tiff',
-                              dpi=dpi)
-        print_tiff = print_tif
-
-    def get_supported_filetypes(self):
+    @classmethod
+    def get_supported_filetypes(cls):
         """Return dict of savefig file formats supported by this backend"""
-        return self.filetypes
+        return cls.filetypes
 
-    def get_supported_filetypes_grouped(self):
+    @classmethod
+    def get_supported_filetypes_grouped(cls):
         """Return a dict of savefig file formats supported by this backend,
         where the keys are a file type name, such as 'Joint Photographic
         Experts Group', and the values are a list of filename extensions used
         for that filetype, such as ['jpg', 'jpeg']."""
         groupings = {}
-        for ext, name in self.filetypes.iteritems():
+        for ext, name in six.iteritems(cls.filetypes):
             groupings.setdefault(name, []).append(ext)
             groupings[name].sort()
         return groupings
 
-    def _get_print_method(self, format):
+    def _get_output_canvas(self, format):
+        """Return a canvas that is suitable for saving figures to a specified
+        file format. If necessary, this function will switch to a registered
+        backend that supports the format.
+        """
         method_name = 'print_%s' % format
 
-        # check for registered backends
-        if format in _backend_d:
-            backend_class = _backend_d[format]
+        # check if this canvas supports the requested format
+        if hasattr(self, method_name):
+            return self
 
-            def _print_method(*args, **kwargs):
-                backend = self.switch_backends(backend_class)
-                print_method = getattr(backend, method_name)
-                return print_method(*args, **kwargs)
+        # check if there is a default canvas for the requested format
+        canvas_class = get_registered_canvas_class(format)
+        if canvas_class:
+            return self.switch_backends(canvas_class)
 
-            return _print_method
-
-        formats = self.get_supported_filetypes()
-        if (format not in formats or not hasattr(self, method_name)):
-            formats = sorted(formats)
-            raise ValueError(
-                'Format "%s" is not supported.\n'
-                'Supported formats: '
-                '%s.' % (format, ', '.join(formats)))
-
-        return getattr(self, method_name)
+        # else report error for unsupported format
+        formats = sorted(self.get_supported_filetypes())
+        raise ValueError('Format "%s" is not supported.\n'
+                         'Supported formats: '
+                         '%s.' % (format, ', '.join(formats)))
 
     def print_figure(self, filename, dpi=None, facecolor='w', edgecolor='w',
                      orientation='portrait', format=None, **kwargs):
@@ -2126,7 +2096,9 @@ class FigureCanvasBase(object):
                     filename = filename.rstrip('.') + '.' + format
         format = format.lower()
 
-        print_method = self._get_print_method(format)
+        # get canvas object and print method for format
+        canvas = self._get_output_canvas(format)
+        print_method = getattr(canvas, 'print_%s' % format)
 
         if dpi is None:
             dpi = rcParams['savefig.dpi']
@@ -2200,8 +2172,8 @@ class FigureCanvasBase(object):
 
                 bbox_inches = bbox_inches.padded(pad)
 
-            restore_bbox = tight_bbox.adjust_bbox(self.figure, format,
-                                                  bbox_inches)
+            restore_bbox = tight_bbox.adjust_bbox(self.figure, bbox_inches,
+                                                  canvas.fixed_dpi)
 
             _bbox_inches_restore = (bbox_inches, restore_bbox)
         else:
@@ -2230,7 +2202,8 @@ class FigureCanvasBase(object):
             #self.figure.canvas.draw() ## seems superfluous
         return result
 
-    def get_default_filetype(self):
+    @classmethod
+    def get_default_filetype(cls):
         """
         Get the default savefig file format as specified in rcParam
         ``savefig.format``. Returned string excludes period. Overridden
@@ -2541,7 +2514,7 @@ class NonGuiException(Exception):
     pass
 
 
-class FigureManagerBase:
+class FigureManagerBase(object):
     """
     Helper class for pyplot mode, wraps everything up into a neat bundle
 
@@ -2620,7 +2593,7 @@ class FigureManagerBase:
 
 class Cursors:
     # this class is only used as a simple namespace
-    HAND, POINTER, SELECT_REGION, MOVE = range(4)
+    HAND, POINTER, SELECT_REGION, MOVE = list(range(4))
 cursors = Cursors()
 
 
@@ -3125,7 +3098,7 @@ class NavigationToolbar2(object):
 
             for loc in locators:
                 loc.refresh()
-        self.canvas.draw()
+        self.canvas.draw_idle()
 
     def _update_view(self):
         """Update the viewlim and position from the view and
@@ -3146,7 +3119,7 @@ class NavigationToolbar2(object):
             a.set_position(pos[i][0], 'original')
             a.set_position(pos[i][1], 'active')
 
-        self.draw()
+        self.canvas.draw_idle()
 
     def save_figure(self, *args):
         """Save the current figure"""

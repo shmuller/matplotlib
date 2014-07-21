@@ -203,6 +203,7 @@ static int wait_for_stdin(void)
         if (interrupted) raise(SIGINT);
     }
     CFReadStreamClose(stream);
+    CFRelease(stream);
     return 1;
 }
 
@@ -248,7 +249,7 @@ static void _dealloc_atsui(void)
 
 static int _draw_path(CGContextRef cr, void* iterator, int nmax)
 {
-    double x1, y1, x2, y2, x3, y3;
+    double x1, y1, x2, y2;
     static unsigned code = STOP;
     static double xs, ys;
     CGPoint current;
@@ -419,6 +420,7 @@ static void _release_hatch(void* info)
 - (void)keyDown:(NSEvent*)event;
 - (void)keyUp:(NSEvent*)event;
 - (void)scrollWheel:(NSEvent *)event;
+- (BOOL)acceptsFirstResponder;
 //- (void)flagsChanged:(NSEvent*)event;
 @end
 
@@ -1338,11 +1340,11 @@ GraphicsContext_draw_path_collection (GraphicsContext* self, PyObject* args)
         return NULL;
     }
     const Py_ssize_t Npaths = PySequence_Size(path_ids);
-    
+
     /* -------------------------------------------------------------------- */
 
     CGContextSaveGState(cr);
-    
+
     /* ------------------- Check facecolors array ------------------------- */
 
     facecolors = PyArray_FromObject(facecolors, NPY_DOUBLE, 1, 2);
@@ -1618,6 +1620,8 @@ GraphicsContext_draw_path_collection (GraphicsContext* self, PyObject* args)
                 translation.x = - (origin.x - translation.x);
                 translation.y = - (origin.y - translation.y);
             }
+            /* in case of missing values, translation may contain NaN's */
+            if (!isfinite(translation.x) || !isfinite(translation.y)) continue;
             CGContextTranslateCTM(cr, translation.x, translation.y);
         }
 
@@ -1947,7 +1951,7 @@ GraphicsContext_draw_quad_mesh (GraphicsContext* self, PyObject* args)
                 const double a = *(double*)PyArray_GETPTR2(edgecolors, fi, 3);
                 CGContextSetRGBStrokeColor(cr, r, g, b, a);
             }
-	
+
             if (Nfacecolors > 0)
             {
                 if (Nedgecolors > 0 || antialiased)
@@ -2100,6 +2104,7 @@ _shade_one_color(CGContextRef cr, CGFloat colors[3], CGPoint points[3], int icol
                                                     function,
                                                     true,
                                                     true);
+        CGColorSpaceRelease(colorspace);
         CGFunctionRelease(function);
         if (shading)
         {
@@ -2233,9 +2238,18 @@ _shade_alpha(CGContextRef cr, CGFloat alphas[3], CGPoint points[3])
     CGImageRef mask = CGBitmapContextCreateImage(bitmap);
     CGContextClipToMask(cr, rect, mask);
     CGImageRelease(mask);
+    CGContextRelease(bitmap);
     free(data);
     return 0;
 }
+
+
+static CGFloat _get_device_scale(CGContextRef cr)
+{
+    CGSize pixelSize = CGContextConvertSizeToDeviceSpace(cr, CGSizeMake(1,1));
+    return pixelSize.width;
+}
+
 
 static PyObject*
 GraphicsContext_draw_gouraud_triangle (GraphicsContext* self, PyObject* args)
@@ -2342,9 +2356,7 @@ setfont(CGContextRef cr, PyObject* family, float size, const char weight[],
 #else
     ATSFontRef font = 0;
 #endif
-#if PY3K
     PyObject* ascii = NULL;
-#endif
 
     const int k = (strcmp(italic, "italic") ? 0 : 2)
                 + (strcmp(weight, "bold") ? 0 : 1);
@@ -2525,14 +2537,9 @@ setfont(CGContextRef cr, PyObject* family, float size, const char weight[],
     for (i = 0; i < n; i++)
     {
         PyObject* item = PyList_GET_ITEM(family, i);
-#if PY3K
         ascii = PyUnicode_AsASCIIString(item);
         if(!ascii) return 0;
         temp = PyBytes_AS_STRING(ascii);
-#else
-        if(!PyString_Check(item)) return 0;
-        temp = PyString_AS_STRING(item);
-#endif
         for (j = 0; j < NMAP; j++)
         {    if (!strcmp(map[j].name, temp))
              {    temp = psnames[map[j].index][k];
@@ -2559,10 +2566,8 @@ setfont(CGContextRef cr, PyObject* family, float size, const char weight[],
             name = temp;
             break;
         }
-#if PY3K
         Py_DECREF(ascii);
         ascii = NULL;
-#endif
     }
     if(!font)
     {   string = CFStringCreateWithCString(kCFAllocatorDefault,
@@ -2575,8 +2580,14 @@ setfont(CGContextRef cr, PyObject* family, float size, const char weight[],
 #endif
         CFRelease(string);
     }
+    if (font == NULL)
+    {
+        PyErr_SetString(PyExc_ValueError, "Could not load font");
+    }
 #ifndef COMPILING_FOR_10_5
-    CGContextSelectFont(cr, name, size, kCGEncodingMacRoman);
+    else {
+        CGContextSelectFont(cr, name, size, kCGEncodingMacRoman);
+    }
 #endif
 #if PY3K
     Py_XDECREF(ascii);
@@ -2640,7 +2651,11 @@ GraphicsContext_draw_text (GraphicsContext* self, PyObject* args)
     CFStringRef s = CFStringCreateWithCharacters(kCFAllocatorDefault, text, n);
 #endif
 
-    font = setfont(cr, family, size, weight, italic);
+    if (!(font = setfont(cr, family, size, weight, italic)))
+    {
+        CFRelease(s);
+        return NULL;
+    }
 
     color = CGColorCreateGenericRGB(self->color[0],
                                     self->color[1],
@@ -2747,7 +2762,11 @@ GraphicsContext_get_text_width_height_descent(GraphicsContext* self, PyObject* a
     CFStringRef s = CFStringCreateWithCharacters(kCFAllocatorDefault, text, n);
 #endif
 
-    font = setfont(cr, family, size, weight, italic);
+    if (!(font = setfont(cr, family, size, weight, italic)))
+    {
+        CFRelease(s);
+        return NULL;
+    };
 
     CFStringRef keys[1];
     CFTypeRef values[1];
@@ -2818,7 +2837,10 @@ GraphicsContext_draw_text (GraphicsContext* self, PyObject* args)
                                 &italic,
                                 &angle)) return NULL;
 
-    atsfont = setfont(cr, family, size, weight, italic);
+    if (!(atsfont = setfont(cr, family, size, weight, italic)))
+    {
+        return NULL;
+    }
 
     OSStatus status;
 
@@ -2903,7 +2925,10 @@ GraphicsContext_get_text_width_height_descent(GraphicsContext* self, PyObject* a
 
     if(!PyArg_ParseTuple(args, "u#Ofss", &text, &n, &family, &size, &weight, &italic)) return NULL;
 
-    atsfont = setfont(cr, family, size, weight, italic);
+    if (!(atsfont = setfont(cr, family, size, weight, italic)))
+    {
+        return NULL;
+    }
 
     OSStatus status = noErr;
     ATSUAttributeTag tags[] = {kATSUFontTag,
@@ -2983,6 +3008,9 @@ static void _data_provider_release(void* info, const void* data, size_t size)
     PyObject* image = (PyObject*)info;
     Py_DECREF(image);
 }
+
+
+
 
 static PyObject*
 GraphicsContext_draw_mathtext(GraphicsContext* self, PyObject* args)
@@ -3064,16 +3092,18 @@ GraphicsContext_draw_mathtext(GraphicsContext* self, PyObject* args)
         return NULL;
     }
 
+    CGFloat deviceScale = _get_device_scale(cr);
+
     if (angle==0.0)
     {
-        CGContextDrawImage(cr, CGRectMake(x,y,ncols,nrows), bitmap);
+        CGContextDrawImage(cr, CGRectMake(x, y, ncols/deviceScale, nrows/deviceScale), bitmap);
     }
     else
     {
         CGContextSaveGState(cr);
         CGContextTranslateCTM(cr, x, y);
         CGContextRotateCTM(cr, angle*M_PI/180);
-        CGContextDrawImage(cr, CGRectMake(0,0,ncols,nrows), bitmap);
+        CGContextDrawImage(cr, CGRectMake(0, 0, ncols/deviceScale, nrows/deviceScale), bitmap);
         CGContextRestoreGState(cr);
     }
     CGImageRelease(bitmap);
@@ -3163,11 +3193,26 @@ GraphicsContext_draw_image(GraphicsContext* self, PyObject* args)
         return NULL;
     }
 
-    CGContextDrawImage(cr, CGRectMake(x,y,ncols,nrows), bitmap);
+    CGFloat deviceScale = _get_device_scale(cr);
+
+    CGContextDrawImage(cr, CGRectMake(x, y, ncols/deviceScale, nrows/deviceScale), bitmap);
     CGImageRelease(bitmap);
 
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+static PyObject*
+GraphicsContext_get_image_magnification(GraphicsContext* self)
+{
+    CGContextRef cr = self->cr;
+    if (!cr)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "CGContextRef is NULL");
+        return NULL;
+    }
+
+    return PyFloat_FromDouble(_get_device_scale(cr));
 }
 
 
@@ -3281,6 +3326,11 @@ static PyMethodDef GraphicsContext_methods[] = {
      (PyCFunction)GraphicsContext_draw_image,
      METH_VARARGS,
      "Draw an image at (x,y) in the graphics context."
+    },
+    {"get_image_magnification",
+     (PyCFunction)GraphicsContext_get_image_magnification,
+     METH_NOARGS,
+     "Returns the scale factor between user and device coordinates."
     },
     {NULL}  /* Sentinel */
 };
@@ -3420,6 +3470,20 @@ FigureCanvas_invalidate(FigureCanvas* self)
         return NULL;
     }
     [view setNeedsDisplay: YES];
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject*
+FigureCanvas_flush_events(FigureCanvas* self)
+{
+    View* view = self->view;
+    if(!view)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "NSView* is NULL");
+        return NULL;
+    }
+    [view displayIfNeeded];
     Py_INCREF(Py_None);
     return Py_None;
 }
@@ -3699,6 +3763,11 @@ static PyMethodDef FigureCanvas_methods[] = {
      METH_NOARGS,
      "Invalidates the canvas."
     },
+    {"flush_events",
+     (PyCFunction)FigureCanvas_flush_events,
+     METH_NOARGS,
+     "Flush the GUI events for the figure."
+    },
     {"set_rubberband",
      (PyCFunction)FigureCanvas_set_rubberband,
      METH_VARARGS,
@@ -3717,12 +3786,12 @@ static PyMethodDef FigureCanvas_methods[] = {
     },
     {"start_event_loop",
      (PyCFunction)FigureCanvas_start_event_loop,
-     METH_KEYWORDS,
+     METH_KEYWORDS | METH_VARARGS,
      "Runs the event loop until the timeout or until stop_event_loop is called.\n",
     },
     {"stop_event_loop",
      (PyCFunction)FigureCanvas_stop_event_loop,
-     METH_KEYWORDS,
+     METH_NOARGS,
      "Stops the event loop that was started by start_event_loop.\n",
     },
     {NULL}  /* Sentinel */
@@ -3924,9 +3993,9 @@ FigureManager_set_window_title(FigureManager* self,
     if(window)
     {
         NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-        NSString* ns_title = [[NSString alloc]
-                              initWithCString: title
-                              encoding: NSUTF8StringEncoding];
+        NSString* ns_title = [[[NSString alloc]
+                               initWithCString: title
+                               encoding: NSUTF8StringEncoding] autorelease];
         [window setTitle: ns_title];
         [pool release];
     }
@@ -4423,7 +4492,12 @@ NavigationToolbar_get_active (NavigationToolbar* self)
     NSMenu* menu = [button menu];
     NSArray* items = [menu itemArray];
     unsigned int n = [items count];
-    int* states = malloc(n*sizeof(int));
+    int* states = calloc(n, sizeof(int));
+    if (!states)
+    {
+        PyErr_SetString(PyExc_RuntimeError, "calloc failed");
+        return NULL;
+    }
     int i;
     unsigned int m = 0;
     NSEnumerator* enumerator = [items objectEnumerator];
@@ -4438,7 +4512,6 @@ NavigationToolbar_get_active (NavigationToolbar* self)
             states[i] = 1;
             m++;
         }
-        else states[i] = 0;
     }
     int j = 0;
     PyObject* list = PyList_New(m);
@@ -5658,6 +5731,11 @@ set_cursor(PyObject* unused, PyObject* args)
         PyErr_Print();
 
     PyGILState_Release(gstate);
+}
+
+- (BOOL)acceptsFirstResponder
+{
+    return YES;
 }
 
 /* This is all wrong. Address of pointer is being passed instead of pointer, keynames don't

@@ -2,7 +2,12 @@
 Contains a classes for generating hatch patterns.
 """
 
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange
+
 import numpy as np
 from matplotlib.path import Path
 

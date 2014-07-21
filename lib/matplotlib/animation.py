@@ -17,6 +17,12 @@
 # * Movies
 #   * Can blit be enabled for movies?
 # * Need to consider event sources to allow clicking through multiple figures
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange, zip
+
 import sys
 import itertools
 import contextlib
@@ -53,7 +59,7 @@ class MovieWriterRegistry(object):
 
     def list(self):
         ''' Get a list of available MovieWriters.'''
-        return self.avail.keys()
+        return list(self.avail.keys())
 
     def is_available(self, name):
         return name in self.avail
@@ -241,10 +247,11 @@ class MovieWriter(object):
         running the commandline tool.
         '''
         try:
-            subprocess.Popen(cls.bin_path(),
+            p = subprocess.Popen(cls.bin_path(),
                              shell=False,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
+            p.communicate()
             return True
         except OSError:
             return False
@@ -320,6 +327,30 @@ class FileMovieWriter(MovieWriter):
         # because it will no longer be referenced and will be gc-ed.
         return open(fname, 'wb')
 
+    def grab_frame(self, **savefig_kwargs):
+        '''
+        Grab the image information from the figure and save as a movie frame.
+        All keyword arguments in savefig_kwargs are passed on to the 'savefig'
+        command that saves the figure.
+        '''
+        #Overloaded to explicitly close temp file.
+        verbose.report('MovieWriter.grab_frame: Grabbing frame.',
+                       level='debug')
+        try:
+            # Tell the figure to save its data to the sink, using the
+            # frame format and dpi.
+            myframesink = self._frame_sink()
+            self.fig.savefig(myframesink, format=self.frame_format,
+                             dpi=self.dpi, **savefig_kwargs)
+            myframesink.close()
+
+        except RuntimeError:
+            out, err = self._proc.communicate()
+            verbose.report('MovieWriter -- Error '
+                           'running proc:\n%s\n%s' % (out,
+                                                      err), level='helpful')
+            raise
+
     def finish(self):
         # Call run here now that all frame grabbing is done. All temp files
         # are available to be assembled.
@@ -362,7 +393,7 @@ class FFMpegBase:
             args.extend(['-b', '%dk' % self.bitrate])
         if self.extra_args:
             args.extend(self.extra_args)
-        for k, v in self.metadata.items():
+        for k, v in six.iteritems(self.metadata):
             args.extend(['-metadata', '%s=%s' % (k, v)])
 
         return args + ['-y', self.outfile]
@@ -393,9 +424,9 @@ class FFMpegFileWriter(FileMovieWriter, FFMpegBase):
     def _args(self):
         # Returns the command line parameters for subprocess to use
         # ffmpeg to create a movie using a collection of temp images
-        return [self.bin_path(), '-vframes', str(self._frame_counter),
-                '-r', str(self.fps), '-i',
-                self._base_temp_name()] + self.output_args
+        return [self.bin_path(), '-i', self._base_temp_name(),
+                '-vframes', str(self._frame_counter),
+                '-r', str(self.fps)] + self.output_args
 
 
 # Base class of avconv information.  AVConv has identical arguments to
@@ -445,7 +476,7 @@ class MencoderBase:
             args.extend(self.extra_args)
         if self.metadata:
             args.extend(['-info', ':'.join('%s=%s' % (k, v)
-                         for k, v in self.metadata.items()
+                         for k, v in six.iteritems(self.metadata)
                          if k in self.allowed_metadata)])
         return args
 
@@ -646,8 +677,9 @@ class Animation(object):
                       "'savefig_kwargs' as it is only currently supported "
                       "with the writers 'ffmpeg_file' and 'mencoder_file' "
                       "(writer used: "
-                      "'{}').".format(writer if isinstance(writer, str)
-                                      else writer.__class__.__name__))
+                      "'{}').".format(
+                          writer if isinstance(writer, six.string_types)
+                          else writer.__class__.__name__))
                 savefig_kwargs.pop('bbox_inches')
 
         # Need to disconnect the first draw callback, since we'll be doing
@@ -678,7 +710,7 @@ class Animation(object):
             bitrate = rcParams['animation.bitrate']
 
         all_anim = [self]
-        if not extra_anim is None:
+        if extra_anim is not None:
             all_anim.extend(anim
                             for anim
                             in extra_anim if anim._fig is self._fig)
@@ -695,7 +727,9 @@ class Animation(object):
                 warnings.warn("MovieWriter %s unavailable" % writer)
 
                 try:
-                    writer = writers.list()[0]
+                    writer = writers[writers.list()[0]](fps, codec, bitrate,
+                                                        extra_args=extra_args,
+                                                        metadata=metadata)
                 except IndexError:
                     raise ValueError("Cannot save animation: no writers are "
                                      "available. Please install mencoder or "
@@ -710,8 +744,8 @@ class Animation(object):
         # since GUI widgets are gone. Either need to remove extra code to
         # allow for this non-existant use case or find a way to make it work.
         with writer.saving(self._fig, filename, dpi):
-            for data in itertools.izip(*[a.new_saved_frame_seq()
-                                         for a in all_anim]):
+            for data in zip(*[a.new_saved_frame_seq()
+                              for a in all_anim]):
                 for anim, d in zip(all_anim, data):
                     #TODO: Need to see if turning off blit is really necessary
                     anim._draw_next_frame(d, blit=False)
@@ -968,6 +1002,13 @@ class FuncAnimation(TimedAnimation):
 
     If blit=True, *func* and *init_func* should return an iterable of
     drawables to clear.
+
+    *kwargs* include *repeat*, *repeat_delay*, and *interval*:
+    *interval* draws a new frame every *interval* milliseconds.
+    *repeat* controls whether the animation should repeat when the sequence
+    of frames is completed.
+    *repeat_delay* optionally adds a delay in milliseconds before repeating
+    the animation.
     '''
     def __init__(self, fig, func, frames=None, init_func=None, fargs=None,
                  save_count=None, **kwargs):
@@ -989,13 +1030,14 @@ class FuncAnimation(TimedAnimation):
         # will be treated as a number of frames.
         if frames is None:
             self._iter_gen = itertools.count
-        elif callable(frames):
+        elif six.callable(frames):
             self._iter_gen = frames
         elif iterable(frames):
             self._iter_gen = lambda: iter(frames)
-            self.save_count = len(frames)
+            if hasattr(frames, '__len__'):
+                self.save_count = len(frames)
         else:
-            self._iter_gen = lambda: iter(range(frames))
+            self._iter_gen = lambda: xrange(frames).__iter__()
             self.save_count = frames
 
         # If we're passed in and using the default, set it to 100.

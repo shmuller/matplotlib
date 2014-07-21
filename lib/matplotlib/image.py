@@ -3,7 +3,11 @@ The image module supports basic image loading, rescaling and display
 operations.
 
 """
-from __future__ import division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 import os
 import warnings
 import math
@@ -55,9 +59,9 @@ class _AxesImageBase(martist.Artist, cm.ScalarMappable):
     }
 
     # reverse interp dict
-    _interpdr = dict([(v, k) for k, v in _interpd.iteritems()])
+    _interpdr = dict([(v, k) for k, v in six.iteritems(_interpd)])
 
-    interpnames = _interpd.keys()
+    interpnames = list(six.iterkeys(_interpd))
 
     def __str__(self):
         return "AxesImage(%g,%g;%gx%g)" % tuple(self.axes.bbox.bounds)
@@ -323,6 +327,8 @@ class _AxesImageBase(martist.Artist, cm.ScalarMappable):
         im.reset_matrix()
         numrows, numcols = im.get_size()
 
+        if numrows <= 0 or numcols <= 0:
+            return
         im.resize(numcols, numrows)  # just to create im.bufOut that
                                      # is required by backends. There
                                      # may be better solution -JJL
@@ -350,8 +356,7 @@ class _AxesImageBase(martist.Artist, cm.ScalarMappable):
 
         l, b, widthDisplay, heightDisplay = self.axes.bbox.bounds
         gc = renderer.new_gc()
-        gc.set_clip_rectangle(self.axes.bbox.frozen())
-        gc.set_clip_path(self.get_clip_path())
+        self._set_gc_clip(gc)
         gc.set_alpha(self.get_alpha())
 
         if self._check_unsampled_image(renderer):
@@ -373,7 +378,7 @@ class _AxesImageBase(martist.Artist, cm.ScalarMappable):
         """
         Test whether the mouse event occured within the image.
         """
-        if callable(self._contains):
+        if six.callable(self._contains):
             return self._contains(self, mouseevent)
         # TODO: make sure this is consistent with patch and patch
         # collection on nonlinear transformed coordinates.
@@ -773,7 +778,7 @@ class NonUniformImage(AxesImage):
         raise NotImplementedError('Method not supported')
 
     def set_interpolation(self, s):
-        if s is not None and not s in ('nearest', 'bilinear'):
+        if s is not None and s not in ('nearest', 'bilinear'):
             raise NotImplementedError('Only nearest neighbor and '
                                       'bilinear interpolations are supported')
         AxesImage.set_interpolation(self, s)
@@ -958,7 +963,7 @@ class FigureImage(martist.Artist, cm.ScalarMappable):
 
     def contains(self, mouseevent):
         """Test whether the mouse event occured within the image."""
-        if callable(self._contains):
+        if six.callable(self._contains):
             return self._contains(self, mouseevent)
         xmin, xmax, ymin, ymax = self.get_extent()
         xdata, ydata = mouseevent.x, mouseevent.y
@@ -1091,14 +1096,14 @@ class BboxImage(_AxesImageBase):
 
         if isinstance(self.bbox, BboxBase):
             return self.bbox
-        elif callable(self.bbox):
+        elif six.callable(self.bbox):
             return self.bbox(renderer)
         else:
             raise ValueError("unknown type of bbox")
 
     def contains(self, mouseevent):
         """Test whether the mouse event occured within the image."""
-        if callable(self._contains):
+        if six.callable(self._contains):
             return self._contains(self, mouseevent)
 
         if not self.get_visible():  # or self.get_figure()._renderer is None:
@@ -1151,8 +1156,8 @@ class BboxImage(_AxesImageBase):
         im.set_resample(self._resample)
 
         l, b, r, t = self.get_window_extent(renderer).extents  # bbox.extents
-        widthDisplay = round(r) - round(l)
-        heightDisplay = round(t) - round(b)
+        widthDisplay = abs(round(r) - round(l))
+        heightDisplay = abs(round(t) - round(b))
         widthDisplay *= magnification
         heightDisplay *= magnification
 
@@ -1180,11 +1185,14 @@ class BboxImage(_AxesImageBase):
         # todo: we should be able to do some cacheing here
         image_mag = renderer.get_image_magnification()
         im = self.make_image(renderer, image_mag)
-        l, b, r, t = self.get_window_extent(renderer).extents
+        x0, y0, x1, y1 = self.get_window_extent(renderer).extents
         gc = renderer.new_gc()
         self._set_gc_clip(gc)
         gc.set_alpha(self.get_alpha())
         #gc.set_clip_path(self.get_clip_path())
+
+        l = np.min([x0, x1])
+        b = np.min([y0, y1])
         renderer.draw_image(gc, round(l), round(b), im)
         gc.restore()
 
@@ -1238,12 +1246,12 @@ def imread(fname, format=None):
     else:
         ext = format
 
-    if ext not in handlers.iterkeys():
+    if ext not in handlers:
         im = pilread(fname)
         if im is None:
             raise ValueError('Only know how to handle extensions: %s; '
                              'with PIL installed matplotlib can handle '
-                             'more images' % handlers.keys())
+                             'more images' % list(six.iterkeys(handlers.keys)))
         return im
 
     handler = handlers[ext]
@@ -1309,8 +1317,12 @@ def pil_to_array(pilImage):
     is MxNx3.  For RGBA images the return value is MxNx4
     """
     def toarray(im, dtype=np.uint8):
-        """Teturn a 1D array of dtype."""
-        x_str = im.tostring('raw', im.mode)
+        """Return a 1D array of dtype."""
+        # Pillow wants us to use "tobytes"
+        if hasattr(im, 'tobytes'):
+            x_str = im.tobytes('raw', im.mode)
+        else:
+            x_str = im.tostring('raw', im.mode)
         x = np.fromstring(x_str, dtype)
         return x
 

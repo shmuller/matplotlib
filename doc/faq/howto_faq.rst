@@ -39,6 +39,17 @@ You can also filter on class instances::
         o.set_fontstyle('italic')
 
 
+.. _howto-supress_offset:
+How to prevent ticklabels from having an offset
+-----------------------------------------------
+The default formatter will use an offset to reduce
+the length of the ticklabels.  To turn this feature
+off on a per-axis basis::
+   ax.get_xaxis().get_major_formatter().set_useOffset(False)
+
+set the rcParam ``axes.formatter.useoffset``, or use a different
+formatter.  See :mod:`~matplotlib.ticker` for details.
+
 .. _howto-transparent:
 
 Save transparent figures
@@ -269,53 +280,6 @@ to achieve the desired plot::
     fig.autofmt_xdate()
 
     plt.show()
-
-.. _point-in-poly:
-
-Test whether a point is inside a polygon
-----------------------------------------
-
-The :mod:`~matplotlib.nxutils` provides two high-performance methods:
-for a single point use :func:`~matplotlib.nxutils.pnpoly` and for an
-array of points use :func:`~matplotlib.nxutils.points_inside_poly`.
-For a discussion of the implementation see `pnpoly
-<http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html>`_.
-
-.. sourcecode:: ipython
-
-    In [25]: import numpy as np
-
-    In [26]: import matplotlib.nxutils as nx
-
-    In [27]: verts = np.array([ [0,0], [0, 1], [1, 1], [1,0]], float)
-
-    In [28]: nx.pnpoly( 0.5, 0.5, verts)
-    Out[28]: 1
-
-    In [29]: nx.pnpoly( 0.5, 1.5, verts)
-    Out[29]: 0
-
-    In [30]: points = np.random.rand(10,2)*2
-
-    In [31]: points
-    Out[31]:
-    array([[ 1.03597426,  0.61029911],
-           [ 1.94061056,  0.65233947],
-           [ 1.08593748,  1.16010789],
-           [ 0.9255139 ,  1.79098751],
-           [ 1.54564936,  1.15604046],
-           [ 1.71514397,  1.26147554],
-           [ 1.19133536,  0.56787764],
-           [ 0.40939549,  0.35190339],
-           [ 1.8944715 ,  0.61785408],
-           [ 0.03128518,  0.48144145]])
-
-    In [32]: nx.points_inside_poly(points, verts)
-    Out[32]: array([False, False, False, False, False, False, False,  True, False, True], dtype=bool)
-
-.. htmlonly::
-
-    For a complete example, see :ref:`event_handling-lasso_demo`.
 
 .. _howto-set-zorder:
 
@@ -693,9 +657,9 @@ or by saving to a file handle::
     import sys
     fig.savefig(sys.stdout)
 
-Here is an example using the Python Imaging Library (PIL).  First, the figure
-is saved to a StringIO object which is then fed to PIL for further
-processing::
+Here is an example using `Pillow <http://python-imaging.github.io/>__.
+First, the figure is saved to a StringIO object which is then fed to
+Pillow for further processing::
 
     import StringIO, Image
     imgdata = StringIO.StringIO()

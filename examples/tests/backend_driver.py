@@ -56,6 +56,8 @@ files['lines'] = [
     'fill_demo.py',
     'fill_demo_features.py',
     'line_demo_dash_control.py',
+    'line_styles_reference.py',
+    'scatter_with_legend.py'
     ]
 
 files['shapes'] = [
@@ -74,7 +76,10 @@ files['images'] = [
 files['statistics'] = [
     'errorbar_demo.py',
     'errorbar_demo_features.py',
+    'histogram_demo_cumulative.py',
     'histogram_demo_features.py',
+    'histogram_demo_histtypes.py',
+    'histogram_demo_multihist.py',
     ]
 
 files['pie'] = [
@@ -172,7 +177,6 @@ files['pylab'] = [
     'hexbin_demo.py',
     'hexbin_demo2.py',
     'hist_colormapped.py',
-    'histogram_demo_extended.py',
     'vline_hline_demo.py',
 
     'image_clip_path.py',
@@ -186,14 +190,10 @@ files['pylab'] = [
     'interp_demo.py',
     'invert_axes.py',
     'layer_images.py',
-    'legend_auto.py',
-    'legend_demo.py',
     'legend_demo2.py',
     'legend_demo3.py',
-    'legend_scatter.py',
     'line_collection.py',
     'line_collection2.py',
-    'line_styles.py',
     'log_bar.py',
     'log_demo.py',
     'log_test.py',

@@ -6,7 +6,11 @@ This module is safe to import from anywhere within matplotlib;
 it imports matplotlib only at runtime.
 """
 
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange
 
 import datetime
 import errno
@@ -115,9 +119,16 @@ def warn_deprecated(
 
     obj_type : str, optional
         The object type being deprecated.
+
+    Examples
+    --------
+    # To warn of the deprecation of "matplotlib.name_of_module"
+    warn_deprecated('1.4.0', name='matplotlib.name_of_module',
+                    obj_type='module')
+
     """
     message = _generate_deprecation_message(
-        since, message, name, alternative, pending, 'function')
+        since, message, name, alternative, pending, obj_type)
 
     warnings.warn(message, mplDeprecation, stacklevel=1)
 
@@ -125,7 +136,7 @@ def warn_deprecated(
 def deprecated(since, message='', name='', alternative='', pending=False,
                obj_type='function'):
     """
-    Used to mark a function as deprecated.
+    Decorator to mark a function as deprecated.
 
     Parameters
     ------------
@@ -160,6 +171,13 @@ def deprecated(since, message='', name='', alternative='', pending=False,
     pending : bool, optional
         If True, uses a PendingDeprecationWarning instead of a
         DeprecationWarning.
+
+    Examples
+    --------
+    @deprecated('1.4.0')
+    def the_function_to_deprecate():
+        pass
+
     """
     def deprecate(func, message=message, name=name, alternative=alternative,
                   pending=pending):
@@ -228,30 +246,10 @@ def deprecated(since, message='', name='', alternative='', pending=False,
 # On some systems, getpreferredencoding sets the locale, which has
 # side effects.  Passing False eliminates those side effects.
 
-if sys.version_info[0] >= 3:
-    def unicode_safe(s):
-        import matplotlib
+def unicode_safe(s):
+    import matplotlib
 
-        try:
-            preferredencoding = locale.getpreferredencoding(
-                matplotlib.rcParams['axes.formatter.use_locale']).strip()
-            if not preferredencoding:
-                preferredencoding = None
-        except (ValueError, ImportError, AttributeError):
-            preferredencoding = None
-
-        if isinstance(s, bytes):
-            if preferredencoding is None:
-                return unicode(s)
-            else:
-                # We say "unicode" and not "str" here so it passes through
-                # 2to3 correctly.
-                return unicode(s, preferredencoding)
-        return s
-else:
-    def unicode_safe(s):
-        import matplotlib
-
+    if isinstance(s, bytes):
         try:
             preferredencoding = locale.getpreferredencoding(
                 matplotlib.rcParams['axes.formatter.use_locale']).strip()
@@ -261,9 +259,10 @@ else:
             preferredencoding = None
 
         if preferredencoding is None:
-            return unicode(s)
+            return six.text_type(s)
         else:
-            return unicode(s, preferredencoding)
+            return six.text_type(s, preferredencoding)
+    return s
 
 
 class converter(object):
@@ -360,8 +359,12 @@ class _BoundMethodProxy(object):
                 self.inst = ref(cb.im_self)
             except TypeError:
                 self.inst = None
-            self.func = cb.im_func
-            self.klass = cb.im_class
+            if six.PY3:
+                self.func = cb.__func__
+                self.klass = cb.__self__.__class__
+            else:
+                self.func = cb.im_func
+                self.klass = cb.im_class
         except AttributeError:
             self.inst = None
             self.func = cb
@@ -430,9 +433,9 @@ class CallbackRegistry:
     callbacks:
 
         >>> def oneat(x):
-        ...    print 'eat', x
+        ...    print('eat', x)
         >>> def ondrink(x):
-        ...    print 'drink', x
+        ...    print('drink', x)
 
         >>> from matplotlib.cbook import CallbackRegistry
         >>> callbacks = CallbackRegistry()
@@ -503,14 +506,15 @@ class CallbackRegistry:
         """
         disconnect the callback registered with callback id *cid*
         """
-        for eventname, callbackd in self.callbacks.items():
+        for eventname, callbackd in list(six.iteritems(self.callbacks)):
             try:
                 del callbackd[cid]
             except KeyError:
                 continue
             else:
-                for category, functions in self._func_cid_map.items():
-                    for function, value in functions.items():
+                for category, functions in list(
+                        six.iteritems(self._func_cid_map)):
+                    for function, value in list(six.iteritems(functions)):
                         if value == cid:
                             del functions[function]
                 return
@@ -521,7 +525,7 @@ class CallbackRegistry:
         callbacks on *s* will be called with *\*args* and *\*\*kwargs*
         """
         if s in self.callbacks:
-            for cid, proxy in self.callbacks[s].items():
+            for cid, proxy in list(six.iteritems(self.callbacks[s])):
                 # Clean out dead references
                 if proxy.inst is not None and proxy.inst() is None:
                     del self.callbacks[s][cid]
@@ -647,7 +651,7 @@ class Bunch:
         self.__dict__.update(kwds)
 
     def __repr__(self):
-        keys = self.__dict__.iterkeys()
+        keys = six.iterkeys(self.__dict__)
         return 'Bunch(%s)' % ', '.join(['%s=%s' % (k, self.__dict__[k])
                                         for k
                                         in keys])
@@ -655,7 +659,7 @@ class Bunch:
 
 def unique(x):
     'Return a list of unique elements of *x*'
-    return dict([(val, 1) for val in x]).keys()
+    return list(six.iterkeys(dict([(val, 1) for val in x])))
 
 
 def iterable(obj):
@@ -669,7 +673,7 @@ def iterable(obj):
 
 def is_string_like(obj):
     'Return True if *obj* looks like a string'
-    if isinstance(obj, (str, unicode)):
+    if isinstance(obj, six.string_types):
         return True
     # numpy strings are subclass of str, ma strings are not
     if ma.isMaskedArray(obj):
@@ -700,7 +704,20 @@ def is_sequence_of_strings(obj):
 
 def is_writable_file_like(obj):
     'return true if *obj* looks like a file object with a *write* method'
-    return hasattr(obj, 'write') and callable(obj.write)
+    return hasattr(obj, 'write') and six.callable(obj.write)
+
+
+def file_requires_unicode(x):
+    """
+    Returns `True` if the given writable file-like object requires Unicode
+    to be written to it.
+    """
+    try:
+        x.write(b'')
+    except TypeError:
+        return True
+    else:
+        return False
 
 
 def is_scalar(obj):
@@ -808,7 +825,7 @@ def flatten(seq, scalarp=is_scalar_or_string):
 
         >>> from matplotlib.cbook import flatten
         >>> l = (('John', ['Hunter']), (1, 23), [[([42, (5, 23)], )]])
-        >>> print list(flatten(l))
+        >>> print(list(flatten(l)))
         ['John', 'Hunter', 1, 23, 42, 5, 23]
 
     By: Composite of Holger Krekel and Luther Blissett
@@ -892,7 +909,7 @@ class Xlator(dict):
 
     def _make_regex(self):
         """ Build re object based on the keys of the current dictionary """
-        return re.compile("|".join(map(re.escape, self.iterkeys())))
+        return re.compile("|".join(map(re.escape, list(six.iterkeys(self)))))
 
     def __call__(self, match):
         """ Handler invoked for each regex *match* """
@@ -946,8 +963,12 @@ class Null:
     def __repr__(self):
         return "Null()"
 
-    def __nonzero__(self):
-        return 0
+    if six.PY3:
+        def __bool__(self):
+            return 0
+    else:
+        def __nonzero__(self):
+            return 0
 
     def __getattr__(self, name):
         return self
@@ -1185,10 +1206,10 @@ def pieces(seq, num=2):
 
 
 def exception_to_str(s=None):
-    if sys.version_info[0] < 3:
-        sh = io.BytesIO()
-    else:
+    if six.PY3:
         sh = io.StringIO()
+    else:
+        sh = io.BytesIO()
     if s is not None:
         print(s, file=sh)
     traceback.print_exc(file=sh)
@@ -1384,7 +1405,7 @@ def finddir(o, match, case=False):
 
 def reverse_dict(d):
     'reverse the dictionary -- may lose data if values are not unique!'
-    return dict([(v, k) for k, v in d.iteritems()])
+    return dict([(v, k) for k, v in six.iteritems(d)])
 
 
 def restrict_dict(d, keys):
@@ -1392,7 +1413,7 @@ def restrict_dict(d, keys):
     Return a dictionary that contains those keys that appear in both
     d and keys, with values from d.
     """
-    return dict([(k, v) for (k, v) in d.iteritems() if k in keys])
+    return dict([(k, v) for (k, v) in six.iteritems(d) if k in keys])
 
 
 def report_memory(i=0):  # argument may go away
@@ -1449,7 +1470,7 @@ def safezip(*args):
     for i, arg in enumerate(args[1:]):
         if len(arg) != Nx:
             raise ValueError(_safezip_msg % (Nx, i + 1, len(arg)))
-    return zip(*args)
+    return list(zip(*args))
 
 
 def issubclass_safe(x, klass):
@@ -1494,7 +1515,7 @@ class MemoryMonitor:
         n = self._n
         segments = min(n, segments)
         dn = int(n / segments)
-        ii = range(0, n, dn)
+        ii = list(xrange(0, n, dn))
         ii[-1] = n - 1
         print()
         print('memory report: i, mem, dmem, dmem/nloops')
@@ -1515,7 +1536,7 @@ class MemoryMonitor:
 
     def plot(self, i0=0, isub=1, fig=None):
         if fig is None:
-            from pylab import figure
+            from .pylab import figure
             fig = figure()
 
         ax = fig.add_subplot(111)
@@ -1546,7 +1567,7 @@ def print_cycles(objects, outstream=sys.stdout, show_progress=False):
 
             outstream.write("   %s -- " % str(type(step)))
             if isinstance(step, dict):
-                for key, val in step.iteritems():
+                for key, val in six.iteritems(step):
                     if val is next:
                         outstream.write("[%s]" % repr(key))
                         break
@@ -1692,13 +1713,13 @@ class Grouper(object):
 
         # Mark each group as we come across if by appending a token,
         # and don't yield it twice
-        for group in self._mapping.itervalues():
+        for group in six.itervalues(self._mapping):
             if not group[-1] is token:
                 yield [x() for x in group]
                 group.append(token)
 
         # Cleanup the tokens
-        for group in self._mapping.itervalues():
+        for group in six.itervalues(self._mapping):
             if group[-1] is token:
                 del group[-1]
 
@@ -1825,6 +1846,177 @@ def delete_masked_points(*args):
     return margs
 
 
+def boxplot_stats(X, whis=1.5, bootstrap=None, labels=None):
+    '''
+    Returns list of dictionaries of staticists to be use to draw a series of
+    box and whisker plots. See the `Returns` section below to the required
+    keys of the dictionary. Users can skip this function and pass a user-
+    defined set of dictionaries to the new `axes.bxp` method instead of
+    relying on MPL to do the calcs.
+
+    Parameters
+    ----------
+    X : array-like
+        Data that will be represented in the boxplots. Should have 2 or fewer
+        dimensions.
+
+    whis : float, string, or sequence (default = 1.5)
+        As a float, determines the reach of the whiskers past the first and
+        third quartiles (e.g., Q3 + whis*IQR, QR = interquartile range, Q3-Q1).
+        Beyond the whiskers, data are considered outliers and are plotted as
+        individual points. Set this to an unreasonably high value to force the
+        whiskers to show the min and max data. Alternatively, set this to an
+        ascending sequence of percentile (e.g., [5, 95]) to set the whiskers
+        at specific percentiles of the data. Finally, can  `whis` be the
+        string 'range' to force the whiskers to the min and max of the data.
+        In the edge case that the 25th and 75th percentiles are equivalent,
+        `whis` will be automatically set to 'range'
+
+    bootstrap : int or None (default)
+        Number of times the confidence intervals around the median should
+        be bootstrapped (percentile method).
+
+    labels : sequence
+        Labels for each dataset. Length must be compatible with dimensions
+        of `X`
+
+    Returns
+    -------
+    bxpstats : list of dict
+        A list of dictionaries containing the results for each column
+        of data. Keys of each dictionary are the following:
+
+        ========   ===================================
+        Key        Value Description
+        ========   ===================================
+        label      tick label for the boxplot
+        mean       arithemetic mean value
+        median     50th percentile
+        q1         first quartile (25th percentile)
+        q3         third quartile (75th percentile)
+        cilo       lower notch around the median
+        ciho       upper notch around the median
+        whislo     end of the lower whisker
+        whishi     end of the upper whisker
+        fliers     outliers
+        ========   ===================================
+
+    Notes
+    -----
+    Non-bootstrapping approach to confidence interval uses Gaussian-based
+    asymptotic approximation:
+
+    .. math:: \mathrm{med} \pm 1.57 \times \frac{\mathrm{iqr}}{\sqrt{N}}
+
+    General approach from:
+    McGill, R., Tukey, J.W., and Larsen, W.A. (1978) "Variations of
+        Boxplots", The American Statistician, 32:12-16.
+
+    '''
+
+    def _bootstrap_median(data, N=5000):
+        # determine 95% confidence intervals of the median
+        M = len(data)
+        percentiles = [2.5, 97.5]
+
+        ii = np.random.randint(M, size=(N, M))
+        bsData = x[ii]
+        estimate = np.median(bsData, axis=1, overwrite_input=True)
+
+        CI = np.percentile(estimate, percentiles)
+        return CI
+
+    def _compute_conf_interval(data, med, iqr, bootstrap):
+        if bootstrap is not None:
+            # Do a bootstrap estimate of notch locations.
+            # get conf. intervals around median
+            CI = _bootstrap_median(data, N=bootstrap)
+            notch_min = CI[0]
+            notch_max = CI[1]
+        else:
+
+            N = len(data)
+            notch_min = med - 1.57 * iqr / np.sqrt(N)
+            notch_max = med + 1.57 * iqr / np.sqrt(N)
+
+        return notch_min, notch_max
+
+    # output is a list of dicts
+    bxpstats = []
+
+    # convert X to a list of lists
+    X = _reshape_2D(X)
+
+    ncols = len(X)
+    if labels is None:
+        labels = [str(i) for i in range(1, ncols+1)]
+    elif len(labels) != ncols:
+        raise ValueError("Dimensions of labels and X must be compatible")
+
+    for ii, (x, label) in enumerate(zip(X, labels), start=0):
+        # empty dict
+        stats = {}
+        stats['label'] = label
+
+        # arithmetic mean
+        stats['mean'] = np.mean(x)
+
+        # medians and quartiles
+        q1, med, q3 = np.percentile(x, [25, 50, 75])
+
+        # interquartile range
+        stats['iqr'] = q3 - q1
+        if stats['iqr'] == 0:
+            whis = 'range'
+
+        # conf. interval around median
+        stats['cilo'], stats['cihi'] = _compute_conf_interval(
+            x, med, stats['iqr'], bootstrap
+        )
+
+        # lowest/highest non-outliers
+        if np.isscalar(whis):
+            if np.isreal(whis):
+                loval = q1 - whis * stats['iqr']
+                hival = q3 + whis * stats['iqr']
+            elif whis in ['range', 'limit', 'limits', 'min/max']:
+                loval = np.min(x)
+                hival = np.max(x)
+            else:
+                whismsg = ('whis must be a float, valid string, or '
+                           'list of percentiles')
+                raise ValueError(whismsg)
+        else:
+            loval = np.percentile(x, whis[0])
+            hival = np.percentile(x, whis[1])
+
+        # get high extreme
+        wiskhi = np.compress(x <= hival, x)
+        if len(wiskhi) == 0 or np.max(wiskhi) < q3:
+            stats['whishi'] = q3
+        else:
+            stats['whishi'] = np.max(wiskhi)
+
+        # get low extreme
+        wisklo = np.compress(x >= loval, x)
+        if len(wisklo) == 0 or np.min(wisklo) > q1:
+            stats['whislo'] = q1
+        else:
+            stats['whislo'] = np.min(wisklo)
+
+        # compute a single array of outliers
+        stats['fliers'] = np.hstack([
+            np.compress(x < stats['whislo'], x),
+            np.compress(x > stats['whishi'], x)
+        ])
+
+        # add in teh remaining stats and append to final output
+        stats['q1'], stats['med'], stats['q3'] = q1, med, q3
+        bxpstats.append(stats)
+
+    return bxpstats
+
+
 # FIXME I don't think this is used anywhere
 def unmasked_index_ranges(mask, compressed=True):
     """
@@ -1933,7 +2125,7 @@ def is_math_text(s):
     # Did we find an even number of non-escaped dollar signs?
     # If so, treat is as math text.
     try:
-        s = unicode(s)
+        s = six.text_type(s)
     except UnicodeDecodeError:
         raise ValueError(
             "matplotlib display text must have all code points < 128 or use "
@@ -1943,6 +2135,112 @@ def is_math_text(s):
     even_dollars = (dollar_count > 0 and dollar_count % 2 == 0)
 
     return even_dollars
+
+
+def _reshape_2D(X):
+    """
+    Converts a non-empty list or an ndarray of two or fewer dimensions
+    into a list of iterable objects so that in
+
+        for v in _reshape_2D(X):
+
+    v is iterable and can be used to instantiate a 1D array.
+    """
+    if hasattr(X, 'shape'):
+        # one item
+        if len(X.shape) == 1:
+            if hasattr(X[0], 'shape'):
+                X = list(X)
+            else:
+                X = [X, ]
+
+        # several items
+        elif len(X.shape) == 2:
+            nrows, ncols = X.shape
+            if nrows == 1:
+                X = [X]
+            elif ncols == 1:
+                X = [X.ravel()]
+            else:
+                X = [X[:, i] for i in xrange(ncols)]
+        else:
+            raise ValueError("input `X` must have 2 or fewer dimensions")
+
+    if not hasattr(X[0], '__len__'):
+        X = [X]
+
+    return X
+
+
+def violin_stats(X, method, points=100):
+    '''
+    Returns a list of dictionaries of data which can be used to draw a series
+    of violin plots. See the `Returns` section below to view the required keys
+    of the dictionary. Users can skip this function and pass a user-defined set
+    of dictionaries to the `axes.vplot` method instead of using MPL to do the
+    calculations.
+
+    Parameters
+    ----------
+    X : array-like
+        Sample data that will be used to produce the gaussian kernel density
+        estimates. Must have 2 or fewer dimensions.
+
+    method : callable
+        The method used to calculate the kernel density estimate for each
+        column of data. When called via `method(v, coords)`, it should
+        return a vector of the values of the KDE evaluated at the values
+        specified in coords.
+
+    points : scalar, default = 100
+        Defines the number of points to evaluate each of the gaussian kernel
+        density estimates at.
+
+    Returns
+    -------
+
+    A list of dictionaries containing the results for each column of data.
+    The dictionaries contain at least the following:
+
+        - coords: A list of scalars containing the coordinates this particular
+          kernel density estimate was evaluated at.
+        - vals: A list of scalars containing the values of the kernel density
+          estimate at each of the coordinates given in `coords`.
+        - mean: The mean value for this column of data.
+        - median: The median value for this column of data.
+        - min: The minimum value for this column of data.
+        - max: The maximum value for this column of data.
+    '''
+
+    # List of dictionaries describing each of the violins.
+    vpstats = []
+
+    # Want X to be a list of data sequences
+    X = _reshape_2D(X)
+
+    for x in X:
+        # Dictionary of results for this distribution
+        stats = {}
+
+        # Calculate basic stats for the distribution
+        min_val = np.min(x)
+        max_val = np.max(x)
+
+        # Evaluate the kernel density estimate
+        coords = np.linspace(min_val, max_val, points)
+        stats['vals'] = method(x, coords)
+        stats['coords'] = coords
+
+        # Store additional statistics for this distribution
+        stats['mean'] = np.mean(x)
+        stats['median'] = np.median(x)
+        stats['min'] = min_val
+        stats['max'] = max_val
+
+        # Append to output
+        vpstats.append(stats)
+
+    return vpstats
 
 
 class _NestedClassGetter(object):
@@ -1972,8 +2270,12 @@ class _InstanceMethodPickler(object):
     """
     def __init__(self, instancemethod):
         """Takes an instancemethod as its only argument."""
-        self.parent_obj = instancemethod.im_self
-        self.instancemethod_name = instancemethod.im_func.__name__
+        if six.PY3:
+            self.parent_obj = instancemethod.__self__
+            self.instancemethod_name = instancemethod.__func__.__name__
+        else:
+            self.parent_obj = instancemethod.im_self
+            self.instancemethod_name = instancemethod.im_func.__name__
 
     def get_instancemethod(self):
         return getattr(self.parent_obj, self.instancemethod_name)

@@ -14,7 +14,11 @@ of the subplot in the figure.
 
 """
 
-from __future__ import division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import zip
 
 import matplotlib
 rcParams = matplotlib.rcParams
@@ -116,8 +120,7 @@ class GridSpecBase(object):
             cellHeights = [cellH] * nrows
 
         sepHeights = [0] + sepH
-        cellHs = accumulate(np.ravel(zip(sepHeights, cellHeights)))
-
+        cellHs = accumulate(np.ravel(list(zip(sepHeights, cellHeights))))
 
         # tight_layout can now pass a list for wspace
         if hasattr(wspace, '__iter__'):
@@ -140,9 +143,7 @@ class GridSpecBase(object):
             cellWidths = [cellW] * ncols
 
         sepWidths = [0] + sepW
-        cellWs = accumulate(np.ravel(zip(sepWidths, cellWidths)))
-
-
+        cellWs = accumulate(np.ravel(list(zip(sepWidths, cellWidths))))
 
         figTops = [top - cellHs[2*rowNum] for rowNum in range(nrows)]
         figBottoms = [top - cellHs[2*rowNum+1] for rowNum in range(nrows)]
@@ -237,7 +238,7 @@ class GridSpec(GridSpecBase):
         the current value, if set, otherwise to rc.
         """
 
-        for k, v in kwargs.iteritems():
+        for k, v in six.iteritems(kwargs):
             if k in self._AllowedKeys:
                 setattr(self, k, v)
             else:
@@ -246,7 +247,7 @@ class GridSpec(GridSpecBase):
 
         from matplotlib import _pylab_helpers
         from matplotlib.axes import SubplotBase
-        for figmanager in _pylab_helpers.Gcf.figs.itervalues():
+        for figmanager in six.itervalues(_pylab_helpers.Gcf.figs):
             for ax in figmanager.canvas.figure.axes:
                 # copied from Figure.subplots_adjust
                 if not isinstance(ax, SubplotBase):
@@ -307,9 +308,9 @@ class GridSpec(GridSpecBase):
             labels) will fit into. Default is (0, 0, 1, 1).
         """
 
-        from tight_layout import (get_subplotspec_list,
-                                  get_tight_layout_figure,
-                                  get_renderer)
+        from .tight_layout import (get_subplotspec_list,
+                                   get_tight_layout_figure,
+                                   get_renderer)
 
         subplotspec_list = get_subplotspec_list(fig.axes, grid_spec=self)
         if None in subplotspec_list:
@@ -475,3 +476,19 @@ class SubplotSpec(object):
             return gridspec.get_topmost_subplotspec()
         else:
             return self
+
+    def __eq__(self, other):
+        # check to make sure other has the attributes
+        # we need to do the comparison
+        if not (hasattr(other, '_gridspec') and
+                hasattr(other, 'num1') and
+                hasattr(other, 'num2')):
+            return False
+        return all((self._gridspec == other._gridspec,
+                    self.num1 == other.num1,
+                    self.num2 == other.num2))
+
+    def __hash__(self):
+        return (hash(self._gridspec) ^
+                hash(self.num1) ^
+                hash(self.num2))

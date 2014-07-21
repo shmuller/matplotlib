@@ -11,6 +11,7 @@
 #include <Python.h>
 #include "ttconv/pprdrv.h"
 #include <vector>
+#include <cassert>
 
 class PythonExceptionOccurred
 {
@@ -48,11 +49,13 @@ public:
         PyObject* result = NULL;
         if (_write_method)
         {
-            #if PY3K
-            result = PyObject_CallFunction(_write_method, (char *)"y", a);
-            #else
-            result = PyObject_CallFunction(_write_method, (char *)"s", a);
-            #endif
+            PyObject* decoded = NULL;
+            decoded = PyUnicode_DecodeLatin1(a, strlen(a), "");
+            if (decoded == NULL) {
+                throw PythonExceptionOccurred();
+            }
+            result = PyObject_CallFunction(_write_method, "O", decoded);
+            Py_DECREF(decoded);
             if (! result)
             {
                 throw PythonExceptionOccurred();
@@ -124,7 +127,11 @@ convert_ttf_to_ps(PyObject* self, PyObject* args, PyObject* kwds)
     };
     if (! PyArg_ParseTupleAndKeywords
         (args, kwds,
+         #if PY_MAJOR_VERSION == 3
+         "yO&i|O&:convert_ttf_to_ps",
+         #else
          "sO&i|O&:convert_ttf_to_ps",
+         #endif
          (char**)kwlist,
          &filename,
          fileobject_to_PythonFileWriter,
@@ -179,14 +186,17 @@ public:
 
     virtual void add_pair(const char* a, const char* b)
     {
+        assert(a != NULL);
+        assert(b != NULL);
         PyObject* value = PyBytes_FromString(b);
-        if (value)
+        if (!value)
         {
-            if (PyDict_SetItemString(_dict, a, value))
-            {
-                Py_DECREF(value);
-                throw PythonExceptionOccurred();
-            }
+            throw PythonExceptionOccurred();
+        }
+        if (PyDict_SetItemString(_dict, a, value))
+        {
+            Py_DECREF(value);
+            throw PythonExceptionOccurred();
         }
         Py_DECREF(value);
     }
@@ -202,7 +212,11 @@ py_get_pdf_charprocs(PyObject* self, PyObject* args, PyObject* kwds)
     static const char *kwlist[] = { "filename", "glyph_ids", NULL };
     if (! PyArg_ParseTupleAndKeywords
             (args, kwds,
+             #if PY_MAJOR_VERSION == 3
+             "y|O&:get_pdf_charprocs",
+             #else
              "s|O&:get_pdf_charprocs",
+             #endif
              (char **)kwlist,
              &filename,
              pyiterable_to_vector_int,

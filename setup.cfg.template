@@ -21,6 +21,9 @@
 #tests = True
 #sample_data = True
 #toolkits = True
+# Tests for the toolkits are only automatically installed
+# if the tests and toolkits packages are also getting installed.
+#toolkits_tests = auto
 
 [gui_support]
 # Matplotlib supports multiple GUI toolkits, including Cocoa,
@@ -54,13 +57,18 @@
 #           otherwise skip silently. This is the default
 #           behavior
 #
+#agg = auto
+#cairo = auto
 #gtk = auto
-#gtkagg = auto
-#tkagg = auto
-#macosx = auto
-#windowing = auto
-#gtk3cairo = auto
 #gtk3agg = auto
+#gtk3cairo = auto
+#gtkagg = auto
+#macosx = auto
+#pyside = auto
+#qt4agg = auto
+#tkagg = auto
+#windowing = auto
+#wxagg = auto
 
 [rc_options]
 # User-configurable options

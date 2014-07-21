@@ -14,7 +14,13 @@ At the very least, you'll need to have access to the
 :func:`~matplotlib.pyplot.imshow` function.  There are a couple of
 ways to do it.  The easy way for an interactive environment::
 
-    $ipython -pylab
+    $ipython
+
+to enter the ipython shell, followed by::
+
+    In [1]: %pylab
+
+to enter the pylab environment.
 
 The imshow function is now directly accessible (it's in your
 `namespace <http://bytebaker.com/2008/07/30/python-namespaces/>`_).
@@ -32,7 +38,7 @@ where you use explicit namespaces and control object creation, etc...
    In [3]: import numpy as np
 
 Examples below will use the latter method, for clarity.  In these
-examples, if you use the -pylab method, you can skip the "mpimg." and
+examples, if you use the %pylab method, you can skip the "mpimg." and
 "plt." prefixes.
 
 .. _importing_data:
@@ -40,12 +46,12 @@ examples, if you use the -pylab method, you can skip the "mpimg." and
 Importing image data into Numpy arrays
 ===============================================
 
-Plotting image data is supported by the Python Image Library (`PIL 
-<http://www.pythonware.com/products/pil/>`_).  Natively, matplotlib
-only supports PNG images.  The commands shown below fall back on PIL
-if the native read fails.
+Plotting image data is supported by the `Pillow
+<http://python-imaging.github.io/>`_).  Natively, matplotlib only
+supports PNG images.  The commands shown below fall back on Pillow if the
+native read fails.
 
-The image used in this example is a PNG file, but keep that PIL
+The image used in this example is a PNG file, but keep that Pillow
 requirement in mind for your own data.
 
 Here's the image we're going to play with:
@@ -116,13 +122,13 @@ And here we go...
 
 Note the dtype there - float32.  Matplotlib has rescaled the 8 bit
 data from each channel to floating point data between 0.0 and 1.0.  As
-a side note, the only datatype that PIL can work with is uint8.
+a side note, the only datatype that Pillow can work with is uint8.
 Matplotlib plotting can handle float32 and uint8, but image
 reading/writing for any format other than PNG is limited to uint8
 data.  Why 8 bits? Most displays can only render 8 bits per channel
 worth of color gradation.  Why can they only render 8 bits/channel?
 Because that's about all the human eye can see.  More here (from a
-photography standpoint): `Luminous Landscape bit depth tutorial 
+photography standpoint): `Luminous Landscape bit depth tutorial
 <http://www.luminous-landscape.com/tutorials/bit-depth.shtml>`_.
 
 Each inner list represents a pixel.  Here, with an RGB image, there
@@ -179,7 +185,7 @@ channel of our data:
 
     In [6]: lum_img = img[:,:,0]
 
-This is array slicing.  You can read more in the `Numpy tutorial 
+This is array slicing.  You can read more in the `Numpy tutorial
 <http://www.scipy.org/Tentative_NumPy_Tutorial>`_.
 
 .. sourcecode:: ipython
@@ -231,7 +237,7 @@ object:
 
 There are many other colormap schemes available.  See the `list and
 images of the colormaps
-<http://matplotlib.org/examples/color/colormaps_reference.html>`_.
+<../examples/color/colormaps_reference.html>`_.
 
 .. _`Color Bars`:
 
@@ -336,9 +342,9 @@ and the computer has to draw in pixels to fill that space.
 
 .. sourcecode:: ipython
 
-    In [8]: import Image
-    In [9]: img = Image.open('stinkbug.png')    # Open image as PIL image object
-    In [10]: rsize = img.resize((img.size[0]/10,img.size[1]/10)) # Use PIL to resize
+    In [8]: from PIL import Image
+    In [9]: img = Image.open('stinkbug.png')    # Open image as Pillow image object
+    In [10]: rsize = img.resize((img.size[0]/10,img.size[1]/10)) # Use Pillow to resize
     In [11]: rsizeArr = np.asarray(rsize)  # Get array back
     In [12]: imgplot = plt.imshow(rsizeArr)
 
@@ -347,8 +353,8 @@ and the computer has to draw in pixels to fill that space.
     import matplotlib.pyplot as plt
     import matplotlib.image as mpimg
     import numpy as np
-    import Image
-    img = Image.open('../_static/stinkbug.png')  # opens the file using PIL - it's not an array yet
+    from PIL import Image
+    img = Image.open('../_static/stinkbug.png')  # opens the file using Pillow - it's not an array yet
     rsize = img.resize((img.size[0]/10,img.size[1]/10))  # resize the image
     rsizeArr = np.asarray(rsize)
     lum_img = rsizeArr[:,:,0]
@@ -368,8 +374,8 @@ Let's try some others:
         import matplotlib.pyplot as plt
         import matplotlib.image as mpimg
         import numpy as np
-        import Image
-        img = Image.open('../_static/stinkbug.png')  # opens the file using PIL - it's not an array yet
+        from PIL import Image
+        img = Image.open('../_static/stinkbug.png')  # opens the file using Pillow - it's not an array yet
         rsize = img.resize((img.size[0]/10,img.size[1]/10))  # resize the image
         rsizeArr = np.asarray(rsize)
         lum_img = rsizeArr[:,:,0]
@@ -385,8 +391,8 @@ Let's try some others:
         import matplotlib.pyplot as plt
         import matplotlib.image as mpimg
         import numpy as np
-        import Image
-        img = Image.open('../_static/stinkbug.png')  # opens the file using PIL - it's not an array yet
+        from PIL import Image
+        img = Image.open('../_static/stinkbug.png')  # opens the file using Pillow - it's not an array yet
         rsize = img.resize((img.size[0]/10,img.size[1]/10))  # resize the image
         rsizeArr = np.asarray(rsize)
         lum_img = rsizeArr[:,:,0]

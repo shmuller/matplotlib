@@ -104,25 +104,25 @@ clip_on			[True | False]
 clip_path		a Path instance and a Transform instance, a Patch
 color or c		any matplotlib color
 contains		the hit testing function
-dash_capstyle		['butt' | 'round' | 'projecting']
-dash_joinstyle		['miter' | 'round' | 'bevel']
+dash_capstyle		[``'butt'`` | ``'round'`` | ``'projecting'``]
+dash_joinstyle		[``'miter'`` | ``'round'`` | ``'bevel'``]
 dashes			sequence of on/off ink in points
 data			(np.array xdata, np.array ydata)
 figure			a matplotlib.figure.Figure instance
 label			any string
-linestyle or ls		[ '-' | '--' | '-.' | ':' | 'steps' | ...]
+linestyle or ls		[ ``'-'`` | ``'--'`` | ``'-.'`` | ``':'`` | ``'steps'`` | ...]
 linewidth or lw		float value in points
 lod			[True | False]
-marker			[ '+' | ',' | '.' | '1' | '2' | '3' | '4'
+marker			[ ``'+'`` | ``','`` | ``'.'`` | ``'1'`` | ``'2'`` | ``'3'`` | ``'4'`` ]
 markeredgecolor or mec	any matplotlib color
 markeredgewidth or mew	float value in points
 markerfacecolor or mfc	any matplotlib color
 markersize or ms	float
-markevery               None | integer | (startind, stride)
+markevery               [ None | integer | (startind, stride) ]
 picker			used in interactive line selection
 pickradius		the line pick selection radius
-solid_capstyle		['butt' | 'round' |  'projecting']
-solid_joinstyle		['miter' | 'round' | 'bevel']
+solid_capstyle		[``'butt'`` | ``'round'`` | ``'projecting'``]
+solid_joinstyle		[``'miter'`` | ``'round'`` | ``'bevel'``]
 transform		a matplotlib.transforms.Transform instance
 visible			[True | False]
 xdata			np.array
@@ -175,7 +175,7 @@ rectangular grid, use the :func:`~matplotlib.pyplot.axes` command,
 which allows you to specify the location as ``axes([left, bottom,
 width, height])`` where all values are in fractional (0 to 1)
 coordinates.  See :ref:`pylab_examples-axes_demo` for an example of
-placing axes manually and :ref:`pylab_examples-line_styles` for an
+placing axes manually and :ref:`pylab_examples-subplots_demo` for an
 example with lots-o-subplots.
 
 
@@ -249,7 +249,7 @@ you can write a TeX expression surrounded by dollar signs::
     plt.title(r'$\sigma_i=15$')
 
 The ``r`` preceding the title string is important -- it signifies
-that the string is a *raw* string and not to treat backslashes and
+that the string is a *raw* string and not to treat backslashes as
 python escapes.  matplotlib has a built-in TeX expression parser and
 layout engine, and ships its own math fonts -- for details see
 :ref:`mathtext-tutorial`.  Thus you can use mathematical text across platforms

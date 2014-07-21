@@ -107,6 +107,11 @@ public:
             data = NULL;
         }
     };
+
+private:
+    // prevent copying
+    BufferRegion(const BufferRegion&);
+    BufferRegion& operator=(const BufferRegion&);
 };
 
 class GCAgg
@@ -241,6 +246,9 @@ public:
 
     const int debug;
 
+    agg::rgba _fill_color;
+
+
 protected:
     double points_to_pixels(const Py::Object& points);
     agg::rgba rgb_to_color(const Py::SeqBase<Py::Object>& rgb, double alpha);
@@ -264,7 +272,7 @@ protected:
      const Py::Object&              clippath,
      const agg::trans_affine&       clippath_trans,
      const PathGenerator&           path_generator,
-     const Py::SeqBase<Py::Object>& transforms_obj,
+     const Py::Object&              transforms_obj,
      const Py::Object&              offsets_obj,
      const agg::trans_affine&       offset_trans,
      const Py::Object&              facecolors_obj,
@@ -281,6 +289,10 @@ protected:
 
 private:
     void create_alpha_buffers();
+
+    // prevent copying
+    RendererAgg(const RendererAgg&);
+    RendererAgg& operator=(const RendererAgg&);
 };
 
 /*
@@ -304,6 +316,10 @@ public:
 private:
 
     Py::Object new_renderer(const Py::Tuple &args, const Py::Dict &kws);
+
+    // prevent copying
+    _backend_agg_module(const _backend_agg_module&);
+    _backend_agg_module& operator=(const _backend_agg_module&);
 };
 */
 

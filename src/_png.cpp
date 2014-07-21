@@ -108,6 +108,7 @@ PyObject *write_png(PyObject *self, PyObject *_args)
     args.verify_length(4, 5);
 
     FILE *fp = NULL;
+    mpl_off_t offset;
     bool close_file = false;
     bool close_dup_file = false;
     Py::Object buffer_obj = Py::Object(args[0]);
@@ -137,7 +138,7 @@ PyObject *write_png(PyObject *self, PyObject *_args)
     PyObject* py_file = NULL;
     if (py_fileobj.isString())
     {
-        if ((py_file = npy_PyFile_OpenFile(py_fileobj.ptr(), (char *)"wb")) == NULL) {
+        if ((py_file = mpl_PyFile_OpenFile(py_fileobj.ptr(), (char *)"wb")) == NULL) {
             throw Py::Exception();
         }
         close_file = true;
@@ -147,7 +148,7 @@ PyObject *write_png(PyObject *self, PyObject *_args)
         py_file = py_fileobj.ptr();
     }
 
-    if ((fp = npy_PyFile_Dup(py_file, (char *)"wb")))
+    if ((fp = mpl_PyFile_Dup(py_file, (char *)"wb", &offset)))
     {
         close_dup_file = true;
     }
@@ -243,14 +244,14 @@ PyObject *write_png(PyObject *self, PyObject *_args)
 
         if (close_dup_file)
         {
-            if (npy_PyFile_DupClose(py_file, fp)) {
+            if (mpl_PyFile_DupClose(py_file, fp, offset)) {
               throw Py::RuntimeError("Error closing dupe file handle");
             }
         }
 
         if (close_file)
         {
-            npy_PyFile_CloseFile(py_file);
+            mpl_PyFile_CloseFile(py_file);
             Py_DECREF(py_file);
         }
         /* Changed calls to png_destroy_write_struct to follow
@@ -264,14 +265,14 @@ PyObject *write_png(PyObject *self, PyObject *_args)
     delete [] row_pointers;
     if (close_dup_file)
     {
-        if (npy_PyFile_DupClose(py_file, fp)) {
+        if (mpl_PyFile_DupClose(py_file, fp, offset)) {
           throw Py::RuntimeError("Error closing dupe file handle");
         }
     }
 
     if (close_file)
     {
-        npy_PyFile_CloseFile(py_file);
+        mpl_PyFile_CloseFile(py_file);
         Py_DECREF(py_file);
     }
 
@@ -319,13 +320,14 @@ _read_png(const Py::Object& py_fileobj, const bool float_result,
 {
     png_byte header[8];   // 8 is the maximum size that can be checked
     FILE* fp = NULL;
+    mpl_off_t offset;
     bool close_file = false;
     bool close_dup_file = false;
     PyObject *py_file = NULL;
 
     if (py_fileobj.isString())
     {
-        if ((py_file = npy_PyFile_OpenFile(py_fileobj.ptr(), (char *)"rb")) == NULL) {
+        if ((py_file = mpl_PyFile_OpenFile(py_fileobj.ptr(), (char *)"rb")) == NULL) {
             throw Py::Exception();
         }
         close_file = true;
@@ -333,7 +335,7 @@ _read_png(const Py::Object& py_fileobj, const bool float_result,
         py_file = py_fileobj.ptr();
     }
 
-    if ((fp = npy_PyFile_Dup(py_file, "rb")))
+    if ((fp = mpl_PyFile_Dup(py_file, "rb", &offset)))
     {
         close_dup_file = true;
     }
@@ -591,14 +593,14 @@ _read_png(const Py::Object& py_fileobj, const bool float_result,
 #endif
     if (close_dup_file)
     {
-        if (npy_PyFile_DupClose(py_file, fp)) {
+        if (mpl_PyFile_DupClose(py_file, fp, offset)) {
           throw Py::RuntimeError("Error closing dupe file handle");
         }
     }
 
     if (close_file)
     {
-        npy_PyFile_CloseFile(py_file);
+        mpl_PyFile_CloseFile(py_file);
         Py_DECREF(py_file);
     }
 

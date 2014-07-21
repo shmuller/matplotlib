@@ -2,7 +2,7 @@
 """
 Matplotlib provides sophisticated date plotting capabilities, standing on the
 shoulders of python :mod:`datetime`, the add-on modules :mod:`pytz` and
-:mod:`dateutils`.  :class:`datetime` objects are converted to floating point
+:mod:`dateutil`.  :class:`datetime` objects are converted to floating point
 numbers which represent time in days since 0001-01-01 UTC, plus 1.  For
 example, 0001-01-01, 06:00 is 1.25, not 0.25.  The helper functions
 :func:`date2num`, :func:`num2date` and :func:`drange` are used to facilitate
@@ -49,6 +49,9 @@ Date tickers
 
 Most of the date tickers can locate single or multiple values.  For
 example::
+
+    # import constants for the days of the week
+    from matplotlib.dates import MO, TU, WE, TH, FR, SA, SU
 
     # tick on mondays every week
     loc = WeekdayLocator(byweekday=MO, tz=tz)
@@ -106,13 +109,17 @@ Here all all the date formatters:
     * :class:`IndexDateFormatter`: date plots with implicit *x*
       indexing.
 """
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange, zip
 
 import re
 import time
 import math
 import datetime
-from itertools import izip
+
 import warnings
 
 
@@ -258,16 +265,25 @@ class strpdate2num:
 _dateutil_parser_parse_np_vectorized = np.vectorize(dateutil.parser.parse)
 
 
-def datestr2num(d):
+def datestr2num(d, default=None):
     """
     Convert a date string to a datenum using
-    :func:`dateutil.parser.parse`.  *d* can be a single string or a
-    sequence of strings.
+    :func:`dateutil.parser.parse`.
+
+    Parameters
+    ----------
+    d : string or sequence of strings
+        The dates to convert.
+
+    default : datetime instance
+        The default date to use when fields are missing in `d`.
     """
     if cbook.is_string_like(d):
-        dt = dateutil.parser.parse(d)
+        dt = dateutil.parser.parse(d, default=default)
         return date2num(dt)
     else:
+        if default is not None:
+            d = [dateutil.parser.parse(s, default=default) for s in d]
         d = np.asarray(d)
         if not d.size:
             return d
@@ -491,7 +507,7 @@ class AutoDateFormatter(ticker.Formatter):
            365.0  : '%Y',
            30.    : '%b %Y',
            1.0    : '%b %d %Y',
-           1./24. : '%H:%M:%D',
+           1./24. : '%H:%M:%S',
            1. / (24. * 60.): '%H:%M:%S.%f',
            }
 
@@ -501,9 +517,25 @@ class AutoDateFormatter(ticker.Formatter):
     dictionary by doing::
 
 
-      formatter = AutoDateFormatter()
-      formatter.scaled[1/(24.*60.)] = '%M:%S' # only show min and sec
+    >>> formatter = AutoDateFormatter()
+    >>> formatter.scaled[1/(24.*60.)] = '%M:%S' # only show min and sec
 
+    Custom `FunctionFormatter`s can also be used. The following example shows
+    how to use a custom format function to strip trailing zeros from decimal
+    seconds and adds the date to the first ticklabel::
+
+    >>> def my_format_function(x, pos=None):
+    ...     x = matplotlib.dates.num2date(x)
+    ...     if pos == 0:
+    ...         fmt = '%D %H:%M:%S.%f'
+    ...     else:
+    ...         fmt = '%H:%M:%S.%f'
+    ...     label = x.strftime(fmt)
+    ...     label = label.rstrip("0")
+    ...     label = label.rstrip(".")
+    ...     return label
+    >>> from matplotlib.ticker import FuncFormatter
+    >>> formatter.scaled[1/(24.*60.)] = FuncFormatter(my_format_function)
     """
 
     # This can be improved by providing some user-level direction on
@@ -519,8 +551,9 @@ class AutoDateFormatter(ticker.Formatter):
 
     def __init__(self, locator, tz=None, defaultfmt='%Y-%m-%d'):
         """
-        Autofmt the date labels.  The default format is the one to use
-        if none of the times in scaled match
+        Autoformat the date labels.  The default format is the one to use
+        if none of the values in ``self.scaled`` are greater than the unit
+        returned by ``locator._get_unit()``.
         """
         self._locator = locator
         self._tz = tz
@@ -532,17 +565,25 @@ class AutoDateFormatter(ticker.Formatter):
                        1. / 24.: '%H:%M:%S',
                        1. / (24. * 60.): '%H:%M:%S.%f'}
 
-    def __call__(self, x, pos=0):
-        scale = float(self._locator._get_unit())
+    def __call__(self, x, pos=None):
+        locator_unit_scale = float(self._locator._get_unit())
         fmt = self.defaultfmt
 
-        for k in sorted(self.scaled):
-            if k >= scale:
-                fmt = self.scaled[k]
+        # Pick the first scale which is greater than the locator unit.
+        for possible_scale in sorted(self.scaled):
+            if possible_scale >= locator_unit_scale:
+                fmt = self.scaled[possible_scale]
                 break
 
-        self._formatter = DateFormatter(fmt, self._tz)
-        return self._formatter(x, pos)
+        if isinstance(fmt, six.string_types):
+            self._formatter = DateFormatter(fmt, self._tz)
+            result = self._formatter(x, pos)
+        elif six.callable(fmt):
+            result = fmt(x, pos)
+        else:
+            raise TypeError('Unexpected type passed to {!r}.'.formatter(self))
+
+        return result
 
 
 class rrulewrapper:
@@ -801,8 +842,8 @@ class AutoDateLocator(DateLocator):
                 # Assume we were given an integer. Use this as the maximum
                 # number of ticks for every frequency and create a
                 # dictionary for this
-                self.maxticks = dict(izip(self._freqs,
-                                          [maxticks] * len(self._freqs)))
+                self.maxticks = dict(zip(self._freqs,
+                                         [maxticks] * len(self._freqs)))
         self.interval_multiples = interval_multiples
         self.intervald = {
             YEARLY:   [1, 2, 4, 5, 10, 20, 40, 50, 100, 200, 400, 500,
@@ -815,8 +856,9 @@ class AutoDateLocator(DateLocator):
             MICROSECONDLY: [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000,
                             5000, 10000, 20000, 50000, 100000, 200000, 500000,
                             1000000]}
-        self._byranges = [None, range(1, 13), range(1, 32), range(0, 24),
-                          range(0, 60), range(0, 60), None]
+        self._byranges = [None, list(xrange(1, 13)), list(xrange(1, 32)),
+                          list(xrange(0, 24)), list(xrange(0, 60)),
+                          list(xrange(0, 60)), None]
 
     def __call__(self):
         'Return the locations of the ticks'
@@ -879,7 +921,7 @@ class AutoDateLocator(DateLocator):
         # an interval from an list specific to that frequency that gives no
         # more than maxticks tick positions. Also, set up some ranges
         # (bymonth, etc.) as appropriate to be passed to rrulewrapper.
-        for i, (freq, num) in enumerate(izip(self._freqs, nums)):
+        for i, (freq, num) in enumerate(zip(self._freqs, nums)):
             # If this particular frequency doesn't give enough ticks, continue
             if num < self.minticks:
                 # Since we're not using this particular frequency, set
@@ -1006,7 +1048,7 @@ class MonthLocator(RRuleLocator):
         example, if ``interval=2``, mark every second occurance.
         """
         if bymonth is None:
-            bymonth = range(1, 13)
+            bymonth = list(xrange(1, 13))
         o = rrulewrapper(MONTHLY, bymonth=bymonth, bymonthday=bymonthday,
                          interval=interval, **self.hms0d)
         RRuleLocator.__init__(self, o, tz)
@@ -1023,7 +1065,8 @@ class WeekdayLocator(RRuleLocator):
         sequence.
 
         Elements of *byweekday* must be one of MO, TU, WE, TH, FR, SA,
-        SU, the constants from :mod:`dateutils.rrule`.
+        SU, the constants from :mod:`dateutil.rrule`, which have been
+        imported into the :mod:`matplotlib.dates` namespace.
 
         *interval* specifies the number of weeks to skip.  For example,
         ``interval=2`` plots every second week.
@@ -1046,7 +1089,7 @@ class DayLocator(RRuleLocator):
         Default is to tick every day of the month: ``bymonthday=range(1,32)``
         """
         if bymonthday is None:
-            bymonthday = range(1, 32)
+            bymonthday = list(xrange(1, 32))
         o = rrulewrapper(DAILY, bymonthday=bymonthday,
                          interval=interval, **self.hms0d)
         RRuleLocator.__init__(self, o, tz)
@@ -1065,7 +1108,7 @@ class HourLocator(RRuleLocator):
         example, if ``interval=2``, mark every second occurrence.
         """
         if byhour is None:
-            byhour = range(24)
+            byhour = list(xrange(24))
         rule = rrulewrapper(HOURLY, byhour=byhour, interval=interval,
                             byminute=0, bysecond=0)
         RRuleLocator.__init__(self, rule, tz)
@@ -1084,7 +1127,7 @@ class MinuteLocator(RRuleLocator):
         example, if ``interval=2``, mark every second occurrence.
         """
         if byminute is None:
-            byminute = range(60)
+            byminute = list(xrange(60))
         rule = rrulewrapper(MINUTELY, byminute=byminute, interval=interval,
                             bysecond=0)
         RRuleLocator.__init__(self, rule, tz)
@@ -1104,7 +1147,7 @@ class SecondLocator(RRuleLocator):
 
         """
         if bysecond is None:
-            bysecond = range(60)
+            bysecond = list(xrange(60))
         rule = rrulewrapper(SECONDLY, bysecond=bysecond, interval=interval)
         RRuleLocator.__init__(self, rule, tz)
 

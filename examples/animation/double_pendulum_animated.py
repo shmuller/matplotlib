@@ -35,7 +35,7 @@ def derivs(state, t):
 
     return dydx
 
-# create a time array from 0..100 sampled at 0.1 second steps
+# create a time array from 0..100 sampled at 0.05 second steps
 dt = 0.05
 t = np.arange(0.0, 20, dt)
 
@@ -84,5 +84,5 @@ def animate(i):
 ani = animation.FuncAnimation(fig, animate, np.arange(1, len(y)),
     interval=25, blit=True, init_func=init)
 
-#ani.save('double_pendulum.mp4', fps=15, clear_temp=True)
+#ani.save('double_pendulum.mp4', fps=15)
 plt.show()

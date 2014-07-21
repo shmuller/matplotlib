@@ -1886,7 +1886,7 @@ Cntr_trace(Cntr *self, PyObject *args, PyObject *kwds)
 static PyObject *
 Cntr_get_cdata(Cntr *self)
 {
-    PyArrayObject *Cdata;
+    PyArrayObject *cdata;
     npy_intp dims[2];
     int i, j;
     int ni, nj;
@@ -1894,14 +1894,14 @@ Cntr_get_cdata(Cntr *self)
     dims[0] = ni = self->site->imax;
     dims[1] = nj = self->site->jmax;
 
-    Cdata = (PyArrayObject *) PyArray_SimpleNew(2, dims, PyArray_SHORT);
-    char *data = (char *) PyArray_DATA(Cdata);
+    cdata = (PyArrayObject *) PyArray_SimpleNew(2, dims, PyArray_SHORT);
+    Cdata *data = (Cdata *) PyArray_DATA(cdata);
     for (j=0; j<nj; j++)
         for (i=0; i<ni; i++)
             data[j + i*nj] = self->site->data[i + j*ni];
             /* output is C-order, input is F-order */
     /* for now we are ignoring the last ni+1 values */
-    return (PyObject *)Cdata;
+    return (PyObject *)cdata;
 }
 
 static PyMethodDef Cntr_methods[] = {

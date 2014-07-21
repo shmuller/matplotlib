@@ -1,7 +1,12 @@
 """
 Interpolation inside triangular grids.
 """
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import xrange
+
 from matplotlib.tri import Triangulation
 from matplotlib.tri.trifinder import TriFinder
 from matplotlib.tri.tritools import TriAnalyzer
@@ -286,7 +291,7 @@ class LinearTriInterpolator(TriInterpolator):
         elif return_key == 'dzdy':
             return self._plane_coefficients[tri_index, 1]
         else:
-            raise ValueError("Invalid return_key: "+return_key)
+            raise ValueError("Invalid return_key: " + return_key)
 
 
 class CubicTriInterpolator(TriInterpolator):
@@ -457,9 +462,9 @@ class CubicTriInterpolator(TriInterpolator):
             dzdx = self._ReferenceElement.get_function_derivatives(
                 alpha, J, ecc, dof)
             if return_key == 'dzdx':
-                return dzdx[:, 0]
+                return dzdx[:, 0, 0]
             else:
-                return dzdx[:, 1]
+                return dzdx[:, 1, 0]
         else:
             raise ValueError("Invalid return_key: " + return_key)
 
@@ -526,7 +531,7 @@ class CubicTriInterpolator(TriInterpolator):
         ab = _transpose_vectorized(abT)
         x = np.expand_dims(x, ndim)
         y = np.expand_dims(y, ndim)
-        OM = np.concatenate([x, y], ndim)-tris_pts[:, 0, :]
+        OM = np.concatenate([x, y], ndim) - tris_pts[:, 0, :]
 
         metric = _prod_vectorized(ab, abT)
         # Here we try to deal with the colinear cases.
@@ -563,8 +568,8 @@ class CubicTriInterpolator(TriInterpolator):
                     ksi: element parametric coordinates in triangle first apex
                     local basis.
         """
-        a = np.array(tris_pts[:, 1, :]-tris_pts[:, 0, :])
-        b = np.array(tris_pts[:, 2, :]-tris_pts[:, 0, :])
+        a = np.array(tris_pts[:, 1, :] - tris_pts[:, 0, :])
+        b = np.array(tris_pts[:, 2, :] - tris_pts[:, 0, :])
         J = _to_matrix_vectorized([[a[:, 0], a[:, 1]],
                                    [b[:, 0], b[:, 1]]])
         return J
@@ -595,9 +600,9 @@ class CubicTriInterpolator(TriInterpolator):
         dot_c = _prod_vectorized(_transpose_vectorized(c), c)[:, 0, 0]
         # Note that this line will raise a warning for dot_a, dot_b or dot_c
         # zeros, but we choose not to support triangles with duplicate points.
-        return _to_matrix_vectorized([[(dot_c-dot_b)/dot_a],
-                                      [(dot_a-dot_c)/dot_b],
-                                      [(dot_b-dot_a)/dot_c]])
+        return _to_matrix_vectorized([[(dot_c-dot_b) / dot_a],
+                                      [(dot_a-dot_c) / dot_b],
+                                      [(dot_b-dot_a) / dot_c]])
 
 
 # FEM element used for interpolation and for solving minimisation
@@ -676,11 +681,20 @@ class _ReducedHCT_Element():
                            [1., 1., 1.], [1., 0., 0.], [-2.,  0., -1.]])
 
     # 3) Loads Gauss points & weights on the 3 sub-_triangles for P2
-    #    exact integral - points at the middle of subtriangles apex
-    gauss_pts = np.array([[0.5, 0.5, 0.], [0.5, 0., 0.5], [0., 0.5, 0.5],
-                          [4./6., 1./6., 1./6.], [1./6., 4./6., 1./6.],
-                          [1./6., 1./6., 4./6.]])
-    gauss_w = np.array([1./9., 1./9., 1./9., 2./9., 2./9., 2./9.])
+    #    exact integral - 3 points on each subtriangles.
+    # NOTE: as the 2nd derivative is discontinuous , we really need those 9
+    # points!
+    n_gauss = 9
+    gauss_pts = np.array([[13./18.,  4./18.,  1./18.],
+                          [ 4./18., 13./18.,  1./18.],
+                          [ 7./18.,  7./18.,  4./18.],
+                          [ 1./18., 13./18.,  4./18.],
+                          [ 1./18.,  4./18., 13./18.],
+                          [ 4./18.,  7./18.,  7./18.],
+                          [ 4./18.,  1./18., 13./18.],
+                          [13./18.,  1./18.,  4./18.],
+                          [ 7./18.,  4./18.,  7./18.]], dtype=np.float64)
+    gauss_w = np.ones([9], dtype=np.float64) / 9.
 
     #  4) Stiffness matrix for curvature energy
     E = np.array([[1., 0., 0.], [0., 1., 0.], [0., 0., 2.]])
@@ -755,16 +769,16 @@ class _ReducedHCT_Element():
         y_sq = y*y
         z_sq = z*z
         dV = _to_matrix_vectorized([
-            [-3.*x_sq, -3.*x_sq],
-            [3.*y_sq, 0.],
-            [0., 3.*z_sq],
-            [-2.*x*z, -2.*x*z+x_sq],
-            [-2.*x*y+x_sq, -2.*x*y],
-            [2.*x*y-y_sq, -y_sq],
-            [2.*y*z, y_sq],
-            [z_sq, 2.*y*z],
-            [-z_sq, 2.*x*z-z_sq],
-            [x*z-y*z, x*y-y*z]])
+            [    -3.*x_sq,     -3.*x_sq],
+            [     3.*y_sq,           0.],
+            [          0.,      3.*z_sq],
+            [     -2.*x*z, -2.*x*z+x_sq],
+            [-2.*x*y+x_sq,      -2.*x*y],
+            [ 2.*x*y-y_sq,        -y_sq],
+            [      2.*y*z,         y_sq],
+            [        z_sq,       2.*y*z],
+            [       -z_sq,  2.*x*z-z_sq],
+            [     x*z-y*z,      x*y-y*z]])
         # Puts back dV in first apex basis
         dV = _prod_vectorized(dV, _extract_submatrices(
             self.rotate_dV, subtri, block_size=2, axis=0))
@@ -831,16 +845,16 @@ class _ReducedHCT_Element():
         y = ksi[:, 1, 0]
         z = ksi[:, 2, 0]
         d2V = _to_matrix_vectorized([
-            [6.*x, 6.*x, 6.*x],
-            [6.*y, 0., 0.],
-            [0., 6.*z, 0.],
-            [2.*z, 2.*z-4.*x, 2.*z-2.*x],
-            [2.*y-4.*x, 2.*y, 2.*y-2.*x],
-            [2.*x-4.*y, 0., -2.*y],
-            [2.*z, 0., 2.*y],
-            [0., 2.*y, 2.*z],
-            [0., 2.*x-4.*z, -2.*z],
-            [-2.*z, -2.*y, x-y-z]])
+            [     6.*x,      6.*x,      6.*x],
+            [     6.*y,        0.,        0.],
+            [       0.,      6.*z,        0.],
+            [     2.*z, 2.*z-4.*x, 2.*z-2.*x],
+            [2.*y-4.*x,      2.*y, 2.*y-2.*x],
+            [2.*x-4.*y,        0.,     -2.*y],
+            [     2.*z,        0.,      2.*y],
+            [       0.,      2.*y,      2.*z],
+            [       0., 2.*x-4.*z,     -2.*z],
+            [    -2.*z,     -2.*y,     x-y-z]])
         # Puts back d2V in first apex basis
         d2V = _prod_vectorized(d2V, _extract_submatrices(
             self.rotate_d2V, subtri, block_size=3, axis=0))
@@ -887,11 +901,11 @@ class _ReducedHCT_Element():
         H_rot, area = self.get_Hrot_from_J(J, return_area=True)
 
         # 3) Computes stiffness matrix
-        # Integration according to Gauss P2 rule for each subtri.
+        # Gauss quadrature.
         K = np.zeros([n, 9, 9], dtype=np.float64)
         weights = self.gauss_w
         pts = self.gauss_pts
-        for igauss in range(6):
+        for igauss in range(self.n_gauss):
             alpha = np.tile(pts[igauss, :], n).reshape(n, 3)
             alpha = np.expand_dims(alpha, 3)
             weight = weights[igauss]
@@ -916,7 +930,8 @@ class _ReducedHCT_Element():
 
         Returns
         -------
-        Returns H_rot used to rotate Hessian from local to global coordinates.
+        Returns H_rot used to rotate Hessian from local basis of first apex,
+        to global coordinates.
         if *return_area* is True, returns also the triangle area (0.5*det(J))
         """
         # Here we try to deal with the simpliest colinear cases ; a null
@@ -1040,8 +1055,8 @@ class _DOF_estimator():
         gradient.
         """
         J = CubicTriInterpolator._get_jacobian(self._tris_pts)
-        tri_z = self.z[self._triangles, :]
-        tri_dz = self.dz[self._triangles, :]
+        tri_z = self.z[self._triangles]
+        tri_dz = self.dz[self._triangles]
         tri_dof = self.get_dof_vec(tri_z, tri_dz, J)
         return tri_dof
 
@@ -1363,7 +1378,7 @@ def _cg(A, b, x0=None, tol=1.e-10, maxiter=1000):
 
     # Following C. T. Kelley
     while (np.sqrt(abs(rho)) > tol*b_norm) and (k < maxiter):
-        p = w+beta*p
+        p = w + beta*p
         z = A.dot(p)
         alpha = rho/np.dot(p, z)
         r = r - alpha*z
@@ -1530,7 +1545,7 @@ def _prod_vectorized(M1, M2):
     assert sh1[-1] == sh2[-2]
 
     ndim1 = len(sh1)
-    t1_index = range(ndim1-2) + [ndim1-1, ndim1-2]
+    t1_index = list(xrange(ndim1-2)) + [ndim1-1, ndim1-2]
     return np.sum(np.transpose(M1, t1_index)[..., np.newaxis] *
                   M2[..., np.newaxis, :], -3)
 

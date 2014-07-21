@@ -28,6 +28,7 @@
    colors_api.rst
    dates_api.rst
    figure_api.rst
+   finance_api.rst
    font_manager_api.rst
    gridspec_api.rst
    legend_api.rst
@@ -35,6 +36,7 @@
    mathtext_api.rst
    mlab_api.rst
    path_api.rst
+   patheffects_api.rst
    pyplot_api.rst
    sankey_api.rst
    spines_api.rst

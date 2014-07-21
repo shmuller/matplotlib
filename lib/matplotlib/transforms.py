@@ -29,7 +29,11 @@ The backends are not expected to handle non-affine transformations
 themselves.
 """
 
-from __future__ import print_function, division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 import numpy as np
 from numpy import ma
 from matplotlib._path import (affine_transform, count_bboxes_overlapping_bbox,
@@ -43,7 +47,7 @@ try:
 except NameError:
     from sets import Set as set
 
-from path import Path
+from .path import Path
 
 DEBUG = False
 
@@ -105,7 +109,7 @@ class TransformNode(object):
     def __getstate__(self):
         d = self.__dict__.copy()
         # turn the weakkey dictionary into a normal dictionary
-        d['_parents'] = dict(self._parents.iteritems())
+        d['_parents'] = dict(six.iteritems(self._parents))
         return d
 
     def __setstate__(self, data_dict):
@@ -150,7 +154,7 @@ class TransformNode(object):
         if self.pass_through or status_changed:
             self._invalid = value
 
-            for parent in self._parents.values():
+            for parent in list(six.itervalues(self._parents)):
                 parent._invalidate_internal(value=value,
                                             invalidating_node=self)
 
@@ -217,7 +221,7 @@ class TransformNode(object):
                 props['label'] = '"%s"' % label
                 props = ' '.join(['%s=%s' % (key, val)
                                   for key, val
-                                  in props.iteritems()])
+                                  in six.iteritems(props)])
 
                 fobj.write('%s [%s];\n' %
                            (hash(root), props))
@@ -225,7 +229,7 @@ class TransformNode(object):
                 if hasattr(root, '_children'):
                     for child in root._children:
                         name = '?'
-                        for key, val in root.__dict__.iteritems():
+                        for key, val in six.iteritems(root.__dict__):
                             if val is child:
                                 name = key
                                 break
@@ -513,14 +517,17 @@ class BboxBase(TransformNode):
         Return a new :class:`Bbox` object, statically transformed by
         the given transform.
         """
-        return Bbox(transform.transform(self.get_points()))
+        pts = self.get_points()
+        ll, ul, lr = transform.transform(np.array([pts[0],
+            [pts[0, 0], pts[1, 1]], [pts[1, 0], pts[0, 1]]]))
+        return Bbox([ll, [lr[0], ul[1]]])
 
     def inverse_transformed(self, transform):
         """
         Return a new :class:`Bbox` object, statically transformed by
         the inverse of the given transform.
         """
-        return Bbox(transform.inverted().transform(self.get_points()))
+        return self.transformed(transform.inverted())
 
     coefs = {'C':  (0.5, 0.5),
              'SW': (0, 0),
@@ -556,7 +563,7 @@ class BboxBase(TransformNode):
         if container is None:
             container = self
         l, b, w, h = container.bounds
-        if isinstance(c, basestring):
+        if isinstance(c, six.string_types):
             cx, cy = self.coefs[c]
         else:
             cx, cy = c
@@ -1559,7 +1566,7 @@ class AffineBase(Transform):
         return np.dot(b, a)
 
     def __eq__(self, other):
-        if other.is_affine:
+        if getattr(other, "is_affine", False):
             return np.all(self.get_matrix() == other.get_matrix())
         return NotImplemented
 
@@ -1868,6 +1875,39 @@ class Affine2D(Affine2DBase):
         self._mtx = np.dot(scale_mtx, self._mtx)
         self.invalidate()
         return self
+
+    def skew(self, xShear, yShear):
+        """
+        Adds a skew in place.
+
+        *xShear* and *yShear* are the shear angles along the *x*- and
+        *y*-axes, respectively, in radians.
+
+        Returns *self*, so this method can easily be chained with more
+        calls to :meth:`rotate`, :meth:`rotate_deg`, :meth:`translate`
+        and :meth:`scale`.
+        """
+        rotX = np.tan(xShear)
+        rotY = np.tan(yShear)
+        skew_mtx = np.array(
+                [[1.0, rotX, 0.0], [rotY, 1.0, 0.0], [0.0, 0.0, 1.0]],
+                np.float_)
+        self._mtx = np.dot(skew_mtx, self._mtx)
+        self.invalidate()
+        return self
+
+    def skew_deg(self, xShear, yShear):
+        """
+        Adds a skew in place.
+
+        *xShear* and *yShear* are the shear angles along the *x*- and
+        *y*-axes, respectively, in degrees.
+
+        Returns *self*, so this method can easily be chained with more
+        calls to :meth:`rotate`, :meth:`rotate_deg`, :meth:`translate`
+        and :meth:`scale`.
+        """
+        return self.skew(np.deg2rad(xShear), np.deg2rad(yShear))
 
     def _get_is_separable(self):
         mtx = self.get_matrix()

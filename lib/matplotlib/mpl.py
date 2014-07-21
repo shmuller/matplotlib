@@ -1,10 +1,13 @@
 """
 .. note:: Deprecated in 1.3
 """
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import warnings
 from matplotlib import cbook
 cbook.warn_deprecated(
-    '1.3', 'matplotlib.mpl', alternative='`import matplotlib as mpl`',
+    '1.3', name='matplotlib.mpl', alternative='`import matplotlib as mpl`',
     obj_type='module')
 from matplotlib import artist
 from matplotlib import axis

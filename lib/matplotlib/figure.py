@@ -11,7 +11,11 @@ contains all the plot elements.  The following classes are defined
 
 """
 
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 import warnings
 from operator import itemgetter
 
@@ -339,6 +343,18 @@ class Figure(Artist):
         self.clf()
         self._cachedRenderer = None
 
+    # TODO: I'd like to dynamically add the _repr_html_ method
+    # to the figure in the right context, but then IPython doesn't
+    # use it, for some reason.
+
+    def _repr_html_(self):
+        # We can't use "isinstance" here, because then we'd end up importing
+        # webagg unconditiionally.
+        if (self.canvas is not None and
+            'WebAgg' in self.canvas.__class__.__name__):
+            from matplotlib.backends import backend_webagg
+            return backend_webagg.ipython_inline_display(self)
+
     def show(self, warn=True):
         """
         If using a GUI backend with pyplot, display the figure window.
@@ -464,7 +480,7 @@ class Figure(Artist):
 
         Returns True,{}
         """
-        if callable(self._contains):
+        if six.callable(self._contains):
             return self._contains(self, mouseevent)
         # inside = mouseevent.x >= 0 and mouseevent.y >= 0
         inside = self.bbox.contains(mouseevent.x, mouseevent.y)
@@ -513,6 +529,7 @@ class Figure(Artist):
             self._suptitle.set_text(t)
             self._suptitle.set_position((x, y))
             self._suptitle.update_from(sup)
+            sup.remove()
         else:
             self._suptitle = sup
         return self._suptitle
@@ -617,13 +634,14 @@ class Figure(Artist):
         if norm is None:
             im.set_clim(vmin, vmax)
         self.images.append(im)
+        im._remove_method = lambda h: self.images.remove(h)
         return im
 
     def set_size_inches(self, *args, **kwargs):
         """
         set_size_inches(w,h, forward=False)
 
-        Set the figure size in inches
+        Set the figure size in inches (1in == 2.54cm)
 
         Usage::
 
@@ -635,6 +653,11 @@ class Figure(Artist):
         from the shell
 
         ACCEPTS: a w,h tuple with w,h in inches
+
+        See Also
+        --------
+
+        matplotlib.Figure.get_size_inches
         """
 
         forward = kwargs.get('forward', False)
@@ -655,7 +678,21 @@ class Figure(Artist):
                 manager.resize(int(canvasw), int(canvash))
 
     def get_size_inches(self):
-        return self.bbox_inches.p1
+        """
+        Returns the current size of the figure in inches (1in == 2.54cm)
+        as an numpy array.
+
+        Returns
+        -------
+        size : ndarray
+           The size of the figure in inches
+
+        See Also
+        --------
+
+        matplotlib.Figure.set_size_inches
+        """
+        return np.array(self.bbox_inches.p1)
 
     def get_edgecolor(self):
         'Get the edge color of the Figure rectangle'
@@ -756,7 +793,7 @@ class Figure(Artist):
                 ret.append(a)
             return tuple(ret)
 
-        key = fixlist(args), fixitems(kwargs.iteritems())
+        key = fixlist(args), fixitems(six.iteritems(kwargs))
         return key
 
     @docstring.dedent_interpd
@@ -874,6 +911,9 @@ class Figure(Artist):
         *kwargs*) then it will simply make that subplot current and
         return it.
 
+        .. seealso:: :meth:`~matplotlib.pyplot.subplot` for an
+           explanation of the args.
+
         The following kwargs are supported:
 
         %(Axes)s
@@ -883,6 +923,10 @@ class Figure(Artist):
 
         if len(args) == 1 and isinstance(args[0], int):
             args = tuple([int(c) for c in str(args[0])])
+            if len(args) != 3:
+                raise ValueError("Integer subplot specification must " +
+                                 "be a three digit number.  " +
+                                 "Not {n:d}".format(n=len(args)))
 
         if isinstance(args[0], SubplotBase):
 
@@ -943,6 +987,7 @@ class Figure(Artist):
         self.legends = []
         if not keep_observers:
             self._axobservers = []
+        self._suptitle = None
 
     def clear(self):
         """
@@ -1143,6 +1188,7 @@ class Figure(Artist):
         """
         l = Legend(self, handles, labels, *args, **kwargs)
         self.legends.append(l)
+        l._remove_method = lambda h: self.legends.remove(h)
         return l
 
     @docstring.dedent_interpd
@@ -1169,6 +1215,7 @@ class Figure(Artist):
         t.update(override)
         self._set_artist_props(t)
         self.texts.append(t)
+        t._remove_method = lambda h: self.texts.remove(h)
         return t
 
     def _set_artist_props(self, a):
@@ -1267,7 +1314,8 @@ class Figure(Artist):
         if getattr(self.canvas, 'manager', None) is not None:
             manager = self.canvas.manager
             import matplotlib._pylab_helpers
-            if manager in matplotlib._pylab_helpers.Gcf.figs.values():
+            if manager in list(six.itervalues(
+                    matplotlib._pylab_helpers.Gcf.figs)):
                 state['_restore_to_pylab'] = True
 
         return state
@@ -1398,7 +1446,8 @@ class Figure(Artist):
 
         kwargs.setdefault('dpi', rcParams['savefig.dpi'])
         frameon = kwargs.pop('frameon', rcParams['savefig.frameon'])
-        transparent = kwargs.pop('transparent', False)
+        transparent = kwargs.pop('transparent',
+                                 rcParams['savefig.transparent'])
 
         if transparent:
             kwargs.setdefault('facecolor', 'none')
@@ -1587,8 +1636,8 @@ class Figure(Artist):
             labels) will fit into. Default is (0, 0, 1, 1).
         """
 
-        from tight_layout import (get_renderer, get_tight_layout_figure,
-                                  get_subplotspec_list)
+        from .tight_layout import (get_renderer, get_tight_layout_figure,
+                                   get_subplotspec_list)
 
         subplotspec_list = get_subplotspec_list(self.axes)
         if None in subplotspec_list:

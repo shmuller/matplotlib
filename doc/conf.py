@@ -28,12 +28,21 @@ sys.path.append(os.path.abspath('.'))
 extensions = ['matplotlib.sphinxext.mathmpl', 'sphinxext.math_symbol_table',
               'sphinx.ext.autodoc', 'matplotlib.sphinxext.only_directives',
               'sphinx.ext.doctest', 'sphinx.ext.autosummary',
-              'matplotlib.sphinxext.plot_directive', 'sphinx.ext.inheritance_diagram',
+              'matplotlib.sphinxext.plot_directive',
+              'sphinx.ext.inheritance_diagram',
               'sphinxext.gen_gallery', 'sphinxext.gen_rst',
-              'matplotlib.sphinxext.ipython_console_highlighting',
               'sphinxext.github',
               'numpydoc']
 
+
+# Use IPython's console highlighting by default
+try:
+    from IPython.sphinxext import ipython_console_highlighting
+except ImportError:
+    extensions.append('matplotlib.sphinxext.ipython_console_highlighting')
+else:
+    print("Using IPython's ipython_console_highlighting directive")
+    extensions.append('IPython.sphinxext.ipython_console_highlighting')
 
 try:
     import numpydoc
@@ -44,8 +53,7 @@ except ImportError:
 
 autosummary_generate = True
 
-if sphinx.__version__ >= 1.1:
-    autodoc_docstring_signature = True
+autodoc_docstring_signature = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -53,12 +61,15 @@ templates_path = ['_templates']
 # The suffix of source filenames.
 source_suffix = '.rst'
 
+# This is the default encoding, but it doesn't hurt to be explicit
+source_encoding = "utf-8"
+
 # The master toctree document.
 master_doc = 'contents'
 
 # General substitutions.
 project = 'Matplotlib'
-copyright = '2002 - 2012 John Hunter, Darren Dale, Eric Firing, Michael Droettboom and the matplotlib development team; 2012 - 2013 The matplotlib development team'
+copyright = '2002 - 2012 John Hunter, Darren Dale, Eric Firing, Michael Droettboom and the matplotlib development team; 2012 - 2014 The matplotlib development team'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
@@ -115,6 +126,7 @@ mpl_example_sections = (
     ('text_labels_and_annotations', 'Text, labels, and annotations'),
     ('ticks_and_spines', 'Ticks and spines'),
     ('subplots_axes_and_figures', 'Subplots, axes, and figures'),
+    ('style_sheets', 'Style sheets'),
     ('specialty_plots', 'Specialty plots'),
     ('showcase', 'Showcase'),
     ('api', 'API'),

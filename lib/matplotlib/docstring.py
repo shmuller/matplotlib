@@ -1,4 +1,8 @@
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+
 from matplotlib import cbook
 import sys
 import types
@@ -33,8 +37,8 @@ class Substitution(object):
         "%s %s wrote the Raven"
     """
     def __init__(self, *args, **kwargs):
-        assert (not (args and kwargs),
-                "Only positional or keyword args are allowed")
+        assert not (len(args) and len(kwargs)), \
+                "Only positional or keyword args are allowed"
         self.params = args or kwargs
 
     def __call__(self, func):
@@ -83,7 +87,7 @@ class Appender(object):
 
     def __call__(self, func):
         docitems = [func.__doc__, self.addendum]
-        func.__doc__ = func.__doc__ and ''.join(docitems)
+        func.__doc__ = func.__doc__ and self.join.join(docitems)
         return func
 
 
@@ -109,7 +113,7 @@ interpd = Substitution()
 def dedent_interpd(func):
     """A special case of the interpd that first performs a dedent on
     the incoming docstring"""
-    if isinstance(func, types.MethodType) and sys.version_info[0] < 3:
+    if isinstance(func, types.MethodType) and not six.PY3:
         func = func.im_func
     return interpd(dedent(func))
 

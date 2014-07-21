@@ -1,4 +1,7 @@
-from __future__ import division
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
 
 import math
 import os
@@ -9,6 +12,7 @@ import tempfile
 import codecs
 import atexit
 import weakref
+import warnings
 
 import matplotlib as mpl
 from matplotlib.backend_bases import RendererBase, GraphicsContextBase,\
@@ -18,8 +22,6 @@ from matplotlib.figure import Figure
 from matplotlib.text import Text
 from matplotlib.path import Path
 from matplotlib import _png, rcParams
-from matplotlib import font_manager
-from matplotlib.ft2font import FT2Font
 from matplotlib.cbook import is_string_like, is_writable_file_like
 from matplotlib.compat import subprocess
 from matplotlib.compat.subprocess import check_output
@@ -29,14 +31,24 @@ from matplotlib.compat.subprocess import check_output
 
 # create a list of system fonts, all of these should work with xe/lua-latex
 system_fonts = []
-for f in font_manager.findSystemFonts():
+if sys.platform.startswith('win'):
+    from matplotlib import font_manager
+    from matplotlib.ft2font import FT2Font
+    for f in font_manager.win32InstalledFonts():
+        try:
+            system_fonts.append(FT2Font(str(f)).family_name)
+        except:
+            pass # unknown error, skip this font
+else:
+    # assuming fontconfig is installed and the command 'fc-list' exists
     try:
-        system_fonts.append(FT2Font(str(f)).family_name)
-    except RuntimeError:
-        pass  # some fonts on osx are known to fail, print?
+        # list scalable (non-bitmap) fonts
+        fc_list = check_output(['fc-list', ':outline,scalable', 'family'])
+        fc_list = fc_list.decode('utf8')
+        system_fonts = [f.split(',')[0] for f in fc_list.splitlines()]
+        system_fonts = list(set(system_fonts))
     except:
-        pass  # unknown error, skip this font
-
+        warnings.warn('error getting fonts from fc-list', UserWarning)
 
 def get_texcommand():
     """Get chosen TeX system from rc."""
@@ -50,10 +62,10 @@ def get_fontspec():
     latex_fontspec = []
     texcommand = get_texcommand()
 
-    if texcommand is not "pdflatex":
-        latex_fontspec.append(r"\usepackage{fontspec}")
+    if texcommand != "pdflatex":
+        latex_fontspec.append("\\usepackage{fontspec}")
 
-    if texcommand is not "pdflatex" and rcParams.get("pgf.rcfonts", True):
+    if texcommand != "pdflatex" and rcParams.get("pgf.rcfonts", True):
         # try to find fonts from rc parameters
         families = ["serif", "sans-serif", "monospace"]
         fontspecs = [r"\setmainfont{%s}", r"\setsansfont{%s}",
@@ -137,7 +149,7 @@ def _font_properties_str(prop):
     family = prop.get_family()[0]
     if family in families:
         commands.append(families[family])
-    elif family in system_fonts and get_texcommand() is not "pdflatex":
+    elif family in system_fonts and get_texcommand() != "pdflatex":
         commands.append(r"\setmainfont{%s}\rmfamily" % family)
     else:
         pass  # print warning?
@@ -170,12 +182,9 @@ def make_pdf_to_png_converter():
     except:
         pass
     # check for ghostscript
-    try:
-        gs = "gs" if sys.platform is not "win32" else "gswin32c"
-        check_output([gs, "-v"], stderr=subprocess.STDOUT)
+    gs, ver = mpl.checkdep_ghostscript()
+    if gs:
         tools_available.append("gs")
-    except:
-        pass
 
     # pick converter
     if "pdftocairo" in tools_available:
@@ -215,11 +224,11 @@ class LatexManagerFactory:
         # check if the previous instance of LatexManager can be reused
         if prev and prev.latex_header == latex_header and prev.texcommand == texcommand:
             if rcParams.get("pgf.debug", False):
-                print "reusing LatexManager"
+                print("reusing LatexManager")
             return prev
         else:
             if rcParams.get("pgf.debug", False):
-                print "creating LatexManager"
+                print("creating LatexManager")
             new_inst = LatexManager()
             LatexManagerFactory.previous_instance = new_inst
             return new_inst
@@ -239,7 +248,7 @@ class WeakSet:
             del self.weak_key_dict[item]
 
     def __iter__(self):
-        return  self.weak_key_dict.iterkeys()
+        return six.iterkeys(self.weak_key_dict)
 
 
 class LatexManager:
@@ -300,9 +309,13 @@ class LatexManager:
         self.texcommand = get_texcommand()
         self.latex_header = LatexManager._build_latex_header()
         latex_end = "\n\\makeatletter\n\\@@end\n"
-        latex = subprocess.Popen([self.texcommand, "-halt-on-error"],
-                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                 cwd=self.tmpdir)
+        try:
+            latex = subprocess.Popen([self.texcommand, "-halt-on-error"],
+                                     stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE,
+                                     cwd=self.tmpdir)
+        except OSError:
+            raise RuntimeError("Error starting process '%s'" % self.texcommand)
         test_input = self.latex_header + latex_end
         stdout, stderr = latex.communicate(test_input.encode("utf-8"))
         if latex.returncode != 0:
@@ -340,7 +353,7 @@ class LatexManager:
 
     def __del__(self):
         if rcParams.get("pgf.debug", False):
-            print "deleting LatexManager"
+            print("deleting LatexManager")
         self._cleanup()
 
     def get_width_height_descent(self, text, prop):
@@ -390,7 +403,7 @@ class LatexManager:
 
 class RendererPgf(RendererBase):
 
-    def __init__(self, figure, fh):
+    def __init__(self, figure, fh, dummy=False):
         """
         Creates a new PGF renderer that translates any drawing instruction
         into text commands to be interpreted in a latex pgfpicture environment.
@@ -407,6 +420,17 @@ class RendererPgf(RendererBase):
 
         # get LatexManager instance
         self.latexManager = LatexManagerFactory.get_latex_manager()
+
+        if dummy:
+            # dummy==True deactivate all methods
+            nop = lambda *args, **kwargs: None
+            for m in RendererPgf.__dict__.keys():
+                if m.startswith("draw_"):
+                    self.__dict__[m] = nop
+        else:
+            # if fh does not belong to a filename, deactivate draw_image
+            if not os.path.exists(fh.name):
+                self.__dict__["draw_image"] = lambda *args, **kwargs: None
 
     def draw_markers(self, gc, marker_path, marker_trans, path, trans, rgbFace=None):
         writeln(self.fh, r"\begin{pgfscope}")
@@ -614,7 +638,7 @@ class RendererPgf(RendererBase):
         # prepare string for tex
         s = common_texification(s)
         prop_cmds = _font_properties_str(prop)
-        s = ur"{%s %s}" % (prop_cmds, s)
+        s = r"{%s %s}" % (prop_cmds, s)
 
 
         writeln(self.fh, r"\begin{pgfscope}")
@@ -631,7 +655,7 @@ class RendererPgf(RendererBase):
 
         f = 1.0 / self.figure.dpi
         text_args = []
-        if angle == 0 or mtext.get_rotation_mode() == "anchor":
+        if mtext and (angle == 0 or mtext.get_rotation_mode() == "anchor"):
             # if text anchoring can be supported, get the original coordinates
             # and add alignment information
             x, y = mtext.get_transform().transform_point(mtext.get_position())
@@ -741,20 +765,25 @@ class FigureCanvasPgf(FigureCanvasBase):
         return 'pdf'
 
     def _print_pgf_to_fh(self, fh, *args, **kwargs):
-        header_text = r"""%% Creator: Matplotlib, PGF backend
+        if kwargs.get("dryrun", False):
+            renderer = RendererPgf(self.figure, None, dummy=True)
+            self.figure.draw(renderer)
+            return
+
+        header_text = """%% Creator: Matplotlib, PGF backend
 %%
 %% To include the figure in your LaTeX document, write
-%%   \input{<filename>.pgf}
+%%   \\input{<filename>.pgf}
 %%
 %% Make sure the required packages are loaded in your preamble
-%%   \usepackage{pgf}
+%%   \\usepackage{pgf}
 %%
 %% Figures using additional raster images can only be included by \input if
 %% they are in the same directory as the main LaTeX file. For loading figures
 %% from other directories you can use the `import` package
-%%   \usepackage{import}
+%%   \\usepackage{import}
 %% and then include the figures with
-%%   \import{<path to file>}{<filename>.pgf}
+%%   \\import{<path to file>}{<filename>.pgf}
 %%
 """
 
@@ -779,7 +808,7 @@ class FigureCanvasPgf(FigureCanvasBase):
         writeln(fh, r"\makeatletter")
         writeln(fh, r"\begin{pgfpicture}")
         writeln(fh, r"\pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{%fin}{%fin}}" % (w, h))
-        writeln(fh, r"\pgfusepath{use as bounding box}")
+        writeln(fh, r"\pgfusepath{use as bounding box, clip}")
         _bbox_inches_restore = kwargs.pop("bbox_inches_restore", None)
         renderer = MixedModeRenderer(self.figure, w, h, dpi,
                                      RendererPgf(self.figure, fh),
@@ -797,6 +826,7 @@ class FigureCanvasPgf(FigureCanvasBase):
         rendered in latex documents.
         """
         if kwargs.get("dryrun", False):
+            self._print_pgf_to_fh(None, *args, **kwargs)
             return
 
         # figure out where the pgf is to be written to
@@ -804,8 +834,11 @@ class FigureCanvasPgf(FigureCanvasBase):
             with codecs.open(fname_or_fh, "w", encoding="utf-8") as fh:
                 self._print_pgf_to_fh(fh, *args, **kwargs)
         elif is_writable_file_like(fname_or_fh):
-            raise ValueError("saving pgf to a stream is not supported, " +
-                             "consider using the pdf option of the pgf-backend")
+            if not os.path.exists(fname_or_fh.name):
+                warnings.warn("streamed pgf-code does not support raster "
+                              "graphics, consider using the pgf-to-pdf option",
+                              UserWarning)
+            self._print_pgf_to_fh(fname_or_fh, *args, **kwargs)
         else:
             raise ValueError("filename must be a path")
 
@@ -824,17 +857,17 @@ class FigureCanvasPgf(FigureCanvasBase):
 
             latex_preamble = get_preamble()
             latex_fontspec = get_fontspec()
-            latexcode = r"""
-\documentclass[12pt]{minimal}
-\usepackage[paperwidth=%fin, paperheight=%fin, margin=0in]{geometry}
+            latexcode = """
+\\documentclass[12pt]{minimal}
+\\usepackage[paperwidth=%fin, paperheight=%fin, margin=0in]{geometry}
 %s
 %s
-\usepackage{pgf}
+\\usepackage{pgf}
 
-\begin{document}
-\centering
-\input{figure.pgf}
-\end{document}""" % (w, h, latex_preamble, latex_fontspec)
+\\begin{document}
+\\centering
+\\input{figure.pgf}
+\\end{document}""" % (w, h, latex_preamble, latex_fontspec)
             with codecs.open(fname_tex, "w", "utf-8") as fh_tex:
                 fh_tex.write(latexcode)
 
@@ -859,6 +892,10 @@ class FigureCanvasPgf(FigureCanvasBase):
         """
         Use LaTeX to compile a Pgf generated figure to PDF.
         """
+        if kwargs.get("dryrun", False):
+            self._print_pgf_to_fh(None, *args, **kwargs)
+            return
+
         # figure out where the pdf is to be written to
         if is_string_like(fname_or_fh):
             with open(fname_or_fh, "wb") as fh:
@@ -892,6 +929,10 @@ class FigureCanvasPgf(FigureCanvasBase):
         """
         Use LaTeX to compile a pgf figure to pdf and convert it to png.
         """
+        if kwargs.get("dryrun", False):
+            self._print_pgf_to_fh(None, *args, **kwargs)
+            return
+
         if is_string_like(fname_or_fh):
             with open(fname_or_fh, "wb") as fh:
                 self._print_png_to_fh(fh, *args, **kwargs)
@@ -901,16 +942,17 @@ class FigureCanvasPgf(FigureCanvasBase):
             raise ValueError("filename must be a path or a file-like object")
 
     def get_renderer(self):
-        return RendererPgf(self.figure, None)
+        return RendererPgf(self.figure, None, dummy=True)
 
 
 class FigureManagerPgf(FigureManagerBase):
     def __init__(self, *args):
         FigureManagerBase.__init__(self, *args)
 
-########################################################################
 
+FigureCanvas = FigureCanvasPgf
 FigureManager = FigureManagerPgf
+
 
 def _cleanup_all():
     LatexManager._cleanup_remaining_instances()

@@ -1,16 +1,24 @@
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import map
 
 import datetime
 import warnings
 import tempfile
 
-from nose.tools import assert_raises, assert_equal
 import dateutil
+try:
+    # mock in python 3.3+
+    from unittest import mock
+except ImportError:
+    import mock
+from nose.tools import assert_raises, assert_equal
 
 from matplotlib.testing.decorators import image_comparison, cleanup
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.dates import DayLocator
 
 
 @image_comparison(baseline_images=['date_empty'], extensions=['png'])
@@ -151,6 +159,18 @@ def test_DateFormatter():
     fig.autofmt_xdate()
 
 
+def test_date_formatter_callable():
+    scale = -11
+    locator = mock.Mock(_get_unit=mock.Mock(return_value=scale))
+    callable_formatting_function = lambda dates, _: \
+                        [dt.strftime('%d-%m//%Y') for dt in dates]
+    
+    formatter = mdates.AutoDateFormatter(locator)
+    formatter.scaled[-10] = callable_formatting_function
+    assert_equal(formatter([datetime.datetime(2014, 12, 25)]),
+                 ['25-12//2014'])
+
+
 def test_drange():
     """
     This test should check if drange works as expected, and if all the
@@ -264,7 +284,7 @@ def test_auto_date_locator():
     for t_delta, expected in results:
         d2 = d1 + t_delta
         locator = _create_auto_date_locator(d1, d2)
-        assert_equal(map(str, mdates.num2date(locator())),
+        assert_equal(list(map(str, mdates.num2date(locator()))),
                      expected)
 
 

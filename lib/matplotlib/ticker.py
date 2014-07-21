@@ -9,6 +9,26 @@ locating and formatting.  Generic tick locators and formatters are provided,
 as well as domain specific custom ones..
 
 
+Default Formatter
+-----------------
+
+The default formatter identifies when the x-data being
+plotted is a small range on top of a large off set.  To
+reduce the chances that the ticklabels overlap the ticks
+are labeled as deltas from a fixed offset.  For example::
+
+   ax.plot(np.arange(2000, 2010), range(10))
+
+will have tick of 0-9 with an offset of +2e3.  If this
+is not desired turn off the use of the offset on the default
+formatter::
+
+
+   ax.get_xaxis().get_major_formatter().set_useOffset(False)
+
+set the rcParam ``axes.formatter.useoffset=False`` to turn it off
+globally, or set a different formatter.
+
 Tick locating
 -------------
 
@@ -43,7 +63,7 @@ The Locator subclasses defined here are
     intelligent ticking during navigation
 
 :class:`MaxNLocator`
-    finds up to a max number of ticks at nice  locations
+    finds up to a max number of ticks at nice locations
 
 :class:`AutoLocator`
     :class:`MaxNLocator` with simple defaults. This is the default
@@ -118,11 +138,17 @@ following methods::
   ax.yaxis.set_minor_formatter( yminorFormatter )
 
 See :ref:`pylab_examples-major_minor_demo1` for an example of setting
-major an minor ticks.  See the :mod:`matplotlib.dates` module for
+major and minor ticks.  See the :mod:`matplotlib.dates` module for
 more information and examples of using date locators and formatters.
 """
 
-from __future__ import division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+if six.PY3:
+    long = int
+
 import decimal
 import locale
 import math
@@ -203,11 +229,9 @@ class Formatter(TickHelper):
 
     def fix_minus(self, s):
         """
-        some classes may want to replace a hyphen for minus with the
-        proper unicode symbol as described `here
-        <http://sourceforge.net/tracker/index.php?func=detail&aid=1962574&
-group_id=80706&atid=560720>`_.
-        The default is to do nothing
+        Some classes may want to replace a hyphen for minus with the
+        proper unicode symbol (U+2212) for typographical correctness.
+        The default is to not replace it.
 
         Note, if you use this method, e.g., in :meth:`format_data` or
         call, you probably don't want to use it for
@@ -286,7 +310,7 @@ class FuncFormatter(Formatter):
 
 class FormatStrFormatter(Formatter):
     """
-    Use a format string to format the tick
+    Use an old-style ('%' operator) format string to format the tick
     """
     def __init__(self, fmt):
         self.fmt = fmt
@@ -294,6 +318,19 @@ class FormatStrFormatter(Formatter):
     def __call__(self, x, pos=None):
         'Return the format for tick val *x* at position *pos*'
         return self.fmt % x
+
+
+class StrMethodFormatter(Formatter):
+    """
+    Use a new-style format string (as used by `str.format()`)
+    to format the tick.  The field formatting must be labeled `x`.
+    """
+    def __init__(self, fmt):
+        self.fmt = fmt
+
+    def __call__(self, x, pos=None):
+        'Return the format for tick val *x* at position *pos*'
+        return self.fmt.format(x=x)
 
 
 class OldScalarFormatter(Formatter):
@@ -350,11 +387,13 @@ class ScalarFormatter(Formatter):
 
     """
 
-    def __init__(self, useOffset=True, useMathText=None, useLocale=None):
+    def __init__(self, useOffset=None, useMathText=None, useLocale=None):
         # useOffset allows plotting small data ranges with large offsets: for
         # example: [1+1e-9,1+2e-9,1+3e-9] useMathText will render the offset
         # and scientific notation in mathtext
 
+        if useOffset is None:
+            useOffset = rcParams['axes.formatter.useoffset']
         self.set_useOffset(useOffset)
         self._usetex = rcParams['text.usetex']
         if useMathText is None:
@@ -397,7 +436,7 @@ class ScalarFormatter(Formatter):
         if rcParams['text.usetex'] or not rcParams['axes.unicode_minus']:
             return s
         else:
-            return s.replace('-', u'\u2212')
+            return s.replace('-', '\u2212')
 
     def __call__(self, x, pos=None):
         'Return the format for tick val *x* at position *pos*'
@@ -707,13 +746,10 @@ class LogFormatterExponent(LogFormatter):
         isDecade = is_close_to_int(fx)
         if not isDecade and self.labelOnlyBase:
             s = ''
-        #if 0: pass
-        elif fx > 10000:
-            s = '%1.0e' % fx
-        #elif x<1: s = '$10^{%d}$'%fx
-        #elif x<1: s =  '10^%d'%fx
-        elif fx < 1:
-            s = '%1.0e' % fx
+        elif abs(fx) > 10000:
+            s = '%1.0g' % fx
+        elif abs(fx) < 1:
+            s = '%1.0g' % fx
         else:
             s = self.pprint_val(fx, d)
         if sign == -1:
@@ -776,6 +812,10 @@ class EngFormatter(Formatter):
     plus a specified unit, e.g., 10 MHz instead of 1e7.
     """
 
+    # the unicode for -6 is the greek letter mu
+    # commeted here due to bug in pep8
+    # (https://github.com/jcrocholl/pep8/issues/271)
+
     # The SI engineering prefixes
     ENG_PREFIXES = {
         -24: "y",
@@ -784,7 +824,7 @@ class EngFormatter(Formatter):
         -15: "f",
         -12: "p",
          -9: "n",
-         -6: u"\u03bc",  # Greek letter mu
+         -6: "\u03bc",
          -3: "m",
           0: "",
           3: "k",
@@ -846,11 +886,11 @@ class EngFormatter(Formatter):
         mant = sign * dnum / (10 ** pow10)
 
         if self.places is None:
-            format_str = u"%g %s"
+            format_str = "%g %s"
         elif self.places == 0:
-            format_str = u"%i %s"
+            format_str = "%i %s"
         elif self.places > 0:
-            format_str = (u"%%.%if %%s" % self.places)
+            format_str = ("%%.%if %%s" % self.places)
 
         formatted = format_str % (mant, prefix)
 
@@ -881,9 +921,9 @@ class Locator(TickHelper):
             automatically for the associated :attr:`axis` simply call
             the Locator instance::
 
-                >>> print(type(loc))
+                >>> print((type(loc)))
                 <type 'Locator'>
-                >>> print(loc())
+                >>> print((loc()))
                 [1, 2, 3, 4]
 
         """
@@ -1353,7 +1393,7 @@ def decade_up(x, base=10):
 
 def nearest_long(x):
     if x == 0:
-        return 0L
+        return long(0)
     elif x > 0:
         return long(x + 0.5)
     else:

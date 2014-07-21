@@ -19,7 +19,11 @@ the advantage that it is the standard way to look up fonts on X11
 platforms, so if a font is installed, it is much more likely to be
 found.
 """
-from __future__ import print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
+import six
+from six.moves import cPickle as pickle
 
 """
 KNOWN ISSUES
@@ -58,13 +62,7 @@ from matplotlib.compat import subprocess
 from matplotlib.fontconfig_pattern import \
     parse_fontconfig_pattern, generate_fontconfig_pattern
 
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
-
 USE_FONTCONFIG = False
-
 verbose = matplotlib.verbose
 
 font_scalings = {
@@ -181,19 +179,19 @@ def win32FontDirectory():
     If the key is not found, $WINDIR/Fonts will be returned.
     """
     try:
-        import _winreg
+        from six.moves import winreg
     except ImportError:
         pass # Fall through to default
     else:
         try:
-            user = _winreg.OpenKey(_winreg.HKEY_CURRENT_USER, MSFolders)
+            user = winreg.OpenKey(winreg.HKEY_CURRENT_USER, MSFolders)
             try:
                 try:
-                    return _winreg.QueryValueEx(user, 'Fonts')[0]
+                    return winreg.QueryValueEx(user, 'Fonts')[0]
                 except OSError:
                     pass # Fall through to default
             finally:
-                _winreg.CloseKey(user)
+                winreg.CloseKey(user)
         except OSError:
             pass # Fall through to default
     return os.path.join(os.environ['WINDIR'], 'Fonts')
@@ -206,7 +204,7 @@ def win32InstalledFonts(directory=None, fontext='ttf'):
     'afm'.
     """
 
-    import _winreg
+    from six.moves import winreg
     if directory is None:
         directory = win32FontDirectory()
 
@@ -215,16 +213,16 @@ def win32InstalledFonts(directory=None, fontext='ttf'):
     key, items = None, {}
     for fontdir in MSFontDirectories:
         try:
-            local = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, fontdir)
+            local = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, fontdir)
         except OSError:
             continue
 
         if not local:
             return list_fonts(directory, fontext)
         try:
-            for j in range(_winreg.QueryInfoKey(local)[1]):
+            for j in range(winreg.QueryInfoKey(local)[1]):
                 try:
-                    key, direc, any = _winreg.EnumValue( local, j)
+                    key, direc, any = winreg.EnumValue( local, j)
                     if not is_string_like(direc):
                         continue
                     if not os.path.dirname(direc):
@@ -238,9 +236,9 @@ def win32InstalledFonts(directory=None, fontext='ttf'):
                     continue
                 except MemoryError:
                     continue
-            return items.keys()
+            return list(six.iterkeys(items))
         finally:
-            _winreg.CloseKey(local)
+            winreg.CloseKey(local)
     return None
 
 def OSXInstalledFonts(directories=None, fontext='ttf'):
@@ -271,16 +269,22 @@ def get_fontconfig_fonts(fontext='ttf'):
 
     fontfiles = {}
     try:
-        pipe = subprocess.Popen(['fc-list', '', 'file'], stdout=subprocess.PIPE)
+        pipe = subprocess.Popen(['fc-list', '--format=%{file}\\n'],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
         output = pipe.communicate()[0]
-    except OSError, IOError:
+    except (OSError, IOError):
         # Calling fc-list did not work, so we'll just return nothing
         return fontfiles
 
     if pipe.returncode == 0:
-        output = str(output)
-        for line in output.split('\n'):
-            fname = line.split(':')[0]
+        # The line breaks between results are in ascii, but each entry
+        # is in in sys.filesystemencoding().
+        for fname in output.split(b'\n'):
+            try:
+                fname = six.text_type(fname, sys.getfilesystemencoding())
+            except UnicodeDecodeError:
+                continue
             if (os.path.splitext(fname)[1][1:] in fontext and
                 os.path.exists(fname)):
                 fontfiles[fname] = 1
@@ -318,7 +322,7 @@ def findSystemFonts(fontpaths=None, fontext='ttf'):
             for f in get_fontconfig_fonts(fontext):
                 fontfiles[f] = 1
 
-    elif isinstance(fontpaths, (str, unicode)):
+    elif isinstance(fontpaths, six.string_types):
         fontpaths = [fontpaths]
 
     for path in fontpaths:
@@ -326,14 +330,14 @@ def findSystemFonts(fontpaths=None, fontext='ttf'):
         for fname in files:
             fontfiles[os.path.abspath(fname)] = 1
 
-    return [fname for fname in fontfiles.iterkeys() if os.path.exists(fname)]
+    return [fname for fname in six.iterkeys(fontfiles) if os.path.exists(fname)]
 
 def weight_as_number(weight):
     """
     Return the weight property as a numeric value.  String values
     are converted to their corresponding numeric value.
     """
-    if isinstance(weight, str):
+    if isinstance(weight, six.string_types):
         try:
             weight = weight_dict[weight.lower()]
         except KeyError:
@@ -391,11 +395,11 @@ def ttfFontProperty(font):
     sfnt2 = sfnt.get((1,0,0,2))
     sfnt4 = sfnt.get((1,0,0,4))
     if sfnt2:
-        sfnt2 = sfnt2.decode('ascii').lower()
+        sfnt2 = sfnt2.decode('macroman').lower()
     else:
         sfnt2 = ''
     if sfnt4:
-        sfnt4 = sfnt4.decode('ascii').lower()
+        sfnt4 = sfnt4.decode('macroman').lower()
     else:
         sfnt4 = ''
     if sfnt4.find('oblique') >= 0:
@@ -423,7 +427,7 @@ def ttfFontProperty(font):
     #    lighter and bolder are also allowed.
 
     weight = None
-    for w in weight_dict.iterkeys():
+    for w in six.iterkeys(weight_dict):
         if sfnt4.find(w) >= 0:
             weight = w
             break
@@ -572,7 +576,7 @@ def createFontList(fontfiles, fontext='ttf'):
                 continue
         else:
             try:
-                font = ft2font.FT2Font(str(fpath))
+                font = ft2font.FT2Font(fpath)
             except RuntimeError:
                 verbose.report("Could not open font file %s"%fpath)
                 continue
@@ -722,7 +726,7 @@ class FontProperties(object):
         Return the name of the font that best matches the font
         properties.
         """
-        return ft2font.FT2Font(str(findfont(self))).family_name
+        return ft2font.FT2Font(findfont(self)).family_name
 
     def get_style(self):
         """
@@ -907,7 +911,7 @@ class FontProperties(object):
         support for it to be enabled.  We are merely borrowing its
         pattern syntax for use here.
         """
-        for key, val in self._parse_fontconfig_pattern(pattern).iteritems():
+        for key, val in six.iteritems(self._parse_fontconfig_pattern(pattern)):
             if type(val) == list:
                 getattr(self, "set_" + key)(val[0])
             else:
@@ -922,12 +926,12 @@ def ttfdict_to_fnames(d):
     flatten a ttfdict to all the filenames it contains
     """
     fnames = []
-    for named in d.itervalues():
-        for styled in named.itervalues():
-            for variantd in styled.itervalues():
-                for weightd in variantd.itervalues():
-                    for stretchd in weightd.itervalues():
-                        for fname in stretchd.itervalues():
+    for named in six.itervalues(d):
+        for styled in six.itervalues(named):
+            for variantd in six.itervalues(styled):
+                for weightd in six.itervalues(variantd):
+                    for stretchd in six.itervalues(weightd):
+                        for fname in six.itervalues(stretchd):
                             fnames.append(fname)
     return fnames
 
@@ -948,7 +952,45 @@ def pickle_load(filename):
         data = pickle.load(fh)
     return data
 
-class FontManager:
+
+class TempCache(object):
+    """
+    A class to store temporary caches that are (a) not saved to disk
+    and (b) invalidated whenever certain font-related
+    rcParams---namely the family lookup lists---are changed or the
+    font cache is reloaded.  This avoids the expensive linear search
+    through all fonts every time a font is looked up.
+    """
+    # A list of rcparam names that, when changed, invalidated this
+    # cache.
+    invalidating_rcparams = (
+        'font.serif', 'font.sans-serif', 'font.cursive', 'font.fantasy',
+        'font.monospace')
+
+    def __init__(self):
+        self._lookup_cache = {}
+        self._last_rcParams = self.make_rcparams_key()
+
+    def make_rcparams_key(self):
+        return [id(fontManager)] + [
+            rcParams[param] for param in self.invalidating_rcparams]
+
+    def get(self, prop):
+        key = self.make_rcparams_key()
+        if key != self._last_rcParams:
+            self._lookup_cache = {}
+            self._last_rcParams = key
+        return self._lookup_cache.get(prop)
+
+    def set(self, prop, value):
+        key = self.make_rcparams_key()
+        if key != self._last_rcParams:
+            self._lookup_cache = {}
+            self._last_rcParams = key
+        self._lookup_cache[prop] = value
+
+
+class FontManager(object):
     """
     On import, the :class:`FontManager` singleton instance creates a
     list of TrueType fonts based on the font properties: name, style,
@@ -1011,9 +1053,6 @@ class FontManager:
         else:
             self.defaultFont['afm'] = None
 
-        self.ttf_lookup_cache = {}
-        self.afm_lookup_cache = {}
-
     def get_default_weight(self):
         """
         Return the default font weight.
@@ -1066,12 +1105,12 @@ class FontManager:
                 options = [x.lower() for x in options]
                 if family2 in options:
                     idx = options.index(family2)
-                    return ((0.1 * (float(idx) / len(options))) *
-                            (float(i) / float(len(families))))
+                    return ((0.1 * (idx / len(options))) *
+                            ((i + 1) / len(families)))
             elif family1 == family2:
                 # The score should be weighted by where in the
                 # list the font was found.
-                return float(i) / float(len(families))
+                return i / len(families)
         return 1.0
 
     def score_style(self, style1, style2):
@@ -1196,15 +1235,13 @@ class FontManager:
             return fname
 
         if fontext == 'afm':
-            font_cache = self.afm_lookup_cache
             fontlist = self.afmlist
         else:
-            font_cache = self.ttf_lookup_cache
             fontlist = self.ttflist
 
         if directory is None:
-            cached = font_cache.get(hash(prop))
-            if cached:
+            cached = _lookup_cache[fontext].get(prop)
+            if cached is not None:
                 return cached
 
         best_score = 1e64
@@ -1248,7 +1285,7 @@ class FontManager:
         else:
             verbose.report(
                 'findfont: Matching %s to %s (%s) with score of %f' %
-                (prop, best_font.name, best_font.fname, best_score))
+                (prop, best_font.name, repr(best_font.fname), best_score))
             result = best_font.fname
 
         if not os.path.isfile(result):
@@ -1262,7 +1299,7 @@ class FontManager:
                 raise ValueError("No valid font could be found")
 
         if directory is None:
-            font_cache[hash(prop)] = result
+            _lookup_cache[fontext].set(prop, result)
         return result
 
 
@@ -1294,19 +1331,27 @@ if USE_FONTCONFIG and sys.platform != 'win32':
         fontexts = get_fontext_synonyms(fontext)
         ext = "." + fontext
         try:
-            pipe = subprocess.Popen(['fc-match', '-sv', pattern], stdout=subprocess.PIPE)
+            pipe = subprocess.Popen(
+                ['fc-match', '-s', '--format=%{file}\\n', pattern],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
             output = pipe.communicate()[0]
-        except OSError, IOError:
+        except (OSError, IOError):
             return None
+
+        # The bulk of the output from fc-list is ascii, so we keep the
+        # result in bytes and parse it as bytes, until we extract the
+        # filename, which is in sys.filesystemencoding().
         if pipe.returncode == 0:
-            for match in _fc_match_regex.finditer(output):
-                file = match.group(1)
-                file = file.decode(sys.getfilesystemencoding())
-                if os.path.splitext(file)[1][1:] in fontexts:
-                    return file
+            for fname in output.split(b'\n'):
+                try:
+                    fname = six.text_type(fname, sys.getfilesystemencoding())
+                except UnicodeDecodeError:
+                    continue
+                if os.path.splitext(fname)[1][1:] in fontexts:
+                    return fname
         return None
 
-    _fc_match_regex = re.compile(br'\sfile:\s+"([^"]*)"')
     _fc_match_cache = {}
 
     def findfont(prop, fontext='ttf'):
@@ -1324,17 +1369,22 @@ if USE_FONTCONFIG and sys.platform != 'win32':
         return result
 
 else:
+    _fmcache = None
+
     if not 'TRAVIS' in os.environ:
         cachedir = get_cachedir()
         if cachedir is not None:
-            if sys.version_info[0] >= 3:
+            if six.PY3:
                 _fmcache = os.path.join(cachedir, 'fontList.py3k.cache')
             else:
                 _fmcache = os.path.join(cachedir, 'fontList.cache')
-    else:
-        _fmcache = None
 
     fontManager = None
+
+    _lookup_cache = {
+        'ttf': TempCache(),
+        'afm': TempCache()
+    }
 
     def _rebuild():
         global fontManager
