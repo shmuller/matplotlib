@@ -1544,6 +1544,7 @@ RendererAgg::_draw_path_collection_generic
         Py_XDECREF(transforms_arr);
         throw Py::ValueError("Transforms must be a Nx3x3 numpy array");
     }
+    Py::Object transforms_arr_obj((PyObject*)transforms_arr, true);
 
     size_t Npaths      = path_generator.num_paths();
     size_t Noffsets    = PyArray_DIM(offsets, 0);
@@ -1557,7 +1558,6 @@ RendererAgg::_draw_path_collection_generic
 
     if ((Nfacecolors == 0 && Nedgecolors == 0) || Npaths == 0)
     {
-        Py_XDECREF(transforms_arr);
         return Py::Object();
     }
 
@@ -1708,8 +1708,6 @@ RendererAgg::_draw_path_collection_generic
             }
         }
     }
-
-    Py_XDECREF(transforms_arr);
 
     return Py::Object();
 }
