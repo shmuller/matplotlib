@@ -265,7 +265,7 @@ class ScalarMappable:
 
     def set_array(self, A):
         'Set the image array from numpy array *A*'
-        self._A = A
+        self._A = np.asanyarray(A)
         self.update_dict['array'] = True
 
     def get_array(self):
