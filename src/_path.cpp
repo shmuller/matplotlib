@@ -347,13 +347,14 @@ point_on_path(const double x, const double y, const double r,
 //_path_module::point_in_path(const Py::Tuple& args)
 PyObject *_point_in_path(PyObject *self, PyObject *_args)
 {
-    const Py::Tuple args(_args);
-    double x = Py::Float(args[0]);
-    double y = Py::Float(args[1]);
-    double r = Py::Float(args[2]);
-    PathIterator path(args[3]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[4].ptr(), false);
-
+    double x, y, r;
+    PyObject *_path, *_trans;
+    if (!PyArg_ParseTuple(_args, "dddOO", &x, &y, &r, &_path, &_trans)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+    
     if (::point_in_path(x, y, r, path, trans)) {
         //return Py::Int(1);
         return PyInt_FromLong(1);
@@ -366,6 +367,34 @@ PyObject *_point_in_path(PyObject *self, PyObject *_args)
 //_path_module::points_in_path(const Py::Tuple& args)
 PyObject *_points_in_path(PyObject *self, PyObject *_args)
 {
+    double r;
+    PyObject *_points_array, *_path, *_trans;
+    if (!PyArg_ParseTuple(_args, "OdOO", &_points_array, &r, &_path, &_trans)) {
+        return NULL;
+    }
+
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+
+    PyArrayObject* points_array;
+    points_array = (PyArrayObject*)PyArray_FromObject(_points_array, PyArray_DOUBLE, 2, 2);
+    if (points_array == NULL || PyArray_DIM(points_array, 1) != 2) {
+        PyErr_SetString(PyExc_TypeError, 
+                "Argument 0 to points_in_path must be an Nx2 numpy array");
+        Py_XDECREF(points_array);
+        return NULL;
+    }
+        
+    npy_intp n = PyArray_DIM(points_array, 0);
+    PyObject* result = PyArray_ZEROS(1, &n, PyArray_BOOL, 0);
+    if (result == NULL) {
+        PyErr_SetString(PyExc_MemoryError,
+                "Could not allocate memory for result");
+        Py_DECREF(points_array);
+        return NULL;
+    }
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(4);
 
@@ -386,6 +415,7 @@ PyObject *_points_in_path(PyObject *self, PyObject *_args)
     if (result == NULL) {
         throw Py::MemoryError("Could not allocate memory for result");
     }
+    */
 
     ::points_in_path(PyArray_DATA(points_array),
                      PyArray_STRIDE(points_array, 0),
@@ -402,12 +432,13 @@ PyObject *_points_in_path(PyObject *self, PyObject *_args)
 //_path_module::point_on_path(const Py::Tuple& args)
 PyObject *_point_on_path(PyObject *self, PyObject *_args)
 {
-    const Py::Tuple args(_args);
-    double x = Py::Float(args[0]);
-    double y = Py::Float(args[1]);
-    double r = Py::Float(args[2]);
-    PathIterator path(args[3]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[4].ptr());
+    double x, y, r;
+    PyObject *_path, *_trans;
+    if (!PyArg_ParseTuple(_args, "dddOO", &x, &y, &r, &_path, &_trans)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
 
     if (::point_on_path(x, y, r, path, trans))
     {
@@ -473,31 +504,33 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     double* extents_data = NULL;
     double xm, ym;
     PyArrayObject* extents = NULL;
+
+    extents = (PyArrayObject*)PyArray_SimpleNew(2, extent_dims, PyArray_DOUBLE);
+    if (extents == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+        return NULL;
+        //throw Py::MemoryError("Could not allocate result array");
+    }
+
+    extents_data = (double*)PyArray_DATA(extents);
+
+    extents_data[0] = std::numeric_limits<double>::infinity();
+    extents_data[1] = std::numeric_limits<double>::infinity();
+    extents_data[2] = -std::numeric_limits<double>::infinity();
+    extents_data[3] = -std::numeric_limits<double>::infinity();
+    /* xm and ym are the minimum positive values in the data, used by log scaling */
+    xm = std::numeric_limits<double>::infinity();
+    ym = std::numeric_limits<double>::infinity();
+
     try
     {
-        extents = (PyArrayObject*)PyArray_SimpleNew
-                  (2, extent_dims, PyArray_DOUBLE);
-        if (extents == NULL)
-        {
-            throw Py::MemoryError("Could not allocate result array");
-        }
-        extents_data = (double*)PyArray_DATA(extents);
-
-        extents_data[0] = std::numeric_limits<double>::infinity();
-        extents_data[1] = std::numeric_limits<double>::infinity();
-        extents_data[2] = -std::numeric_limits<double>::infinity();
-        extents_data[3] = -std::numeric_limits<double>::infinity();
-        /* xm and ym are the minimum positive values in the data, used
-           by log scaling */
-        xm = std::numeric_limits<double>::infinity();
-        ym = std::numeric_limits<double>::infinity();
-
         ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
                            &extents_data[2], &extents_data[3], &xm, &ym);
     }
     catch (...)
     {
-        Py_XDECREF(extents);
+        Py_DECREF(extents);
         throw;
     }
 
