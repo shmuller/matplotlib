@@ -494,12 +494,19 @@ get_path_extents(PathIterator& path, const agg::trans_affine& trans,
 //_path_module::get_path_extents(const Py::Tuple& args)
 PyObject *_get_path_extents(PyObject *self, PyObject *_args)
 {
+    PyObject *_path, *_trans;
+    if (!PyArg_ParseTuple(_args, "OO", &_path, &_trans)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+    /*
     const Py::Tuple args(_args);
     args.verify_length(2);
 
     PathIterator path(args[0]);
     agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
-
+    */
     npy_intp extent_dims[] = { 2, 2, 0 };
     double* extents_data = NULL;
     double xm, ym;
@@ -523,17 +530,10 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     xm = std::numeric_limits<double>::infinity();
     ym = std::numeric_limits<double>::infinity();
 
-    try
-    {
-        ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
-                           &extents_data[2], &extents_data[3], &xm, &ym);
-    }
-    catch (...)
-    {
-        Py_DECREF(extents);
-        throw;
-    }
-
+    // shmuller: never throws, so remove try-catch block
+    ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
+                       &extents_data[2], &extents_data[3], &xm, &ym);
+    
     //return Py::Object((PyObject*)extents, true);
     return (PyObject*)extents;
 }
@@ -542,6 +542,38 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
 //_path_module::update_path_extents(const Py::Tuple& args)
 PyObject *_update_path_extents(PyObject *self, PyObject *_args)
 {
+    PyObject *_path, *_trans, *_bbox, *_minpos, *_ignore;
+    if (!PyArg_ParseTuple(_args, "OOOOO", 
+                &_path, &_trans, &_bbox, &_minpos, &_ignore)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+    
+    double x0, y0, x1, y1;
+    if (!py_convert_bbox(_bbox, x0, y0, x1, y1))
+    {
+        PyErr_SetString(PyExc_ValueError,
+                "Must pass Bbox object as arg 3 of update_path_extents");
+        return NULL;
+    }
+    bool ignore = PyObject_IsTrue(_ignore) != 0;
+
+    double xm, ym;
+    PyArrayObject* input_minpos = NULL;
+    input_minpos = (PyArrayObject*)PyArray_FromObject(_minpos, PyArray_DOUBLE, 1, 1);
+    if (!input_minpos || PyArray_DIM(input_minpos, 0) != 2)
+    {
+        PyErr_SetString(PyExc_TypeError,
+            "Argument 4 to update_path_extents must be a length-2 numpy array.");
+        Py_XDECREF(input_minpos);
+        return NULL;
+    }
+    xm = *(double*)PyArray_GETPTR1(input_minpos, 0);
+    ym = *(double*)PyArray_GETPTR1(input_minpos, 1);
+    Py_DECREF(input_minpos);
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(5);
 
@@ -578,7 +610,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
         throw;
     }
     Py_XDECREF(input_minpos);
-
+    */
     npy_intp extent_dims[] = { 2, 2, 0 };
     double* extents_data = NULL;
     npy_intp minpos_dims[] = { 2, 0 };
@@ -586,20 +618,26 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     PyArrayObject* extents = NULL;
     PyArrayObject* minpos = NULL;
     bool changed = false;
-
+/*
     try
     {
+*/
         extents = (PyArrayObject*)PyArray_SimpleNew
                   (2, extent_dims, PyArray_DOUBLE);
         if (extents == NULL)
-        {
-            throw Py::MemoryError("Could not allocate result array");
+        {   
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+            return NULL;
+            //throw Py::MemoryError("Could not allocate result array");
         }
         minpos = (PyArrayObject*)PyArray_SimpleNew
                  (1, minpos_dims, PyArray_DOUBLE);
         if (minpos == NULL)
         {
-            throw Py::MemoryError("Could not allocate result array");
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+            Py_DECREF(extents);
+            return NULL;
+            //throw Py::MemoryError("Could not allocate result array");
         }
 
         extents_data = (double*)PyArray_DATA(extents);
@@ -650,7 +688,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
                    extents_data[3] != y1 ||
                    minpos_data[0]  != xm ||
                    minpos_data[1]  != ym);
-
+/*
     }
     catch (...)
     {
@@ -658,7 +696,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
         Py_XDECREF(minpos);
         throw;
     }
-
+*/
     //Py::Tuple result(3);
     //result[0] = Py::Object((PyObject*) extents);
     //result[1] = Py::Object((PyObject*) minpos);

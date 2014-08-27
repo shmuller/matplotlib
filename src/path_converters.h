@@ -4,8 +4,6 @@
 #define __PATH_CONVERTERS_H__
 
 #include <stdlib.h>
-#include "CXX/Objects.hxx"
-#include "numpy/arrayobject.h"
 #include "agg_path_storage.h"
 #include "agg_clip_liang_barsky.h"
 #include "MPL_isnan.h"
