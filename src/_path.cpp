@@ -712,6 +712,16 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
 //_path_module::get_path_collection_extents(const Py::Tuple& args)
 PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
 {
+    PyObject *_master_transform, *_paths, *_transforms, *_offsets, *_offset_trans;
+    if (!PyArg_ParseTuple(_args, "OOOOO", 
+            &_master_transform, &_paths, &_transforms, &_offsets, &_offset_trans)) {
+        return NULL;
+    }
+    agg::trans_affine master_transform = py_to_agg_transformation_matrix
+        (_master_transform, false);
+    agg::trans_affine offset_trans     = py_to_agg_transformation_matrix
+        (_offset_trans, false);
+    /*
     const Py::Tuple args(_args);
     args.verify_length(5);
 
@@ -721,25 +731,47 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
     Py::SeqBase<Py::Object> transforms_obj   = args[2];
     Py::Object              offsets_obj      = args[3];
     agg::trans_affine       offset_trans     = py_to_agg_transformation_matrix(args[4].ptr(), false);
-
+    */
     PyArrayObject* offsets = NULL;
     double x0, y0, x1, y1, xm, ym;
 
+    /*
     try
     {
-        offsets = (PyArrayObject*)PyArray_FromObject(
-            offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
+    */
+        //offsets = (PyArrayObject*)PyArray_FromObject(
+        //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
+        offsets = (PyArrayObject*)PyArray_FromObject(_offsets, PyArray_DOUBLE, 0, 2);
         if (!offsets ||
             (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
             (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
         {
-            throw Py::ValueError("Offsets array must be Nx2");
+            PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
+            Py_XDECREF(offsets);
+            return NULL;
+            //throw Py::ValueError("Offsets array must be Nx2");
         }
 
-        size_t Npaths      = paths.length();
+        PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
+        if (__paths == NULL) 
+        {
+            return NULL;
+        }
+        PyObject* __transforms = PySequence_Fast(_transforms, "transforms must be a sequence");
+        if (__transforms == NULL) 
+        {
+            Py_DECREF(__paths);
+            return NULL;
+        }
+        PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
+        PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
+
+        size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
+        //size_t Npaths      = paths.length();
         size_t Noffsets    = PyArray_DIM(offsets, 0);
         size_t N           = std::max(Npaths, Noffsets);
-        size_t Ntransforms = std::min(transforms_obj.length(), N);
+        size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
+        //size_t Ntransforms = std::min(transforms_obj.length(), N);
         size_t i;
 
         // Convert all of the transforms up front
@@ -749,7 +781,9 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         for (i = 0; i < Ntransforms; ++i)
         {
             agg::trans_affine trans = py_to_agg_transformation_matrix
-                (transforms_obj[i].ptr(), false);
+                (transforms_arr[i], false);
+            //agg::trans_affine trans = py_to_agg_transformation_matrix
+            //    (transforms_obj[i].ptr(), false);
             trans *= master_transform;
             transforms.push_back(trans);
         }
@@ -763,9 +797,10 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         ym = std::numeric_limits<double>::infinity();
         agg::trans_affine trans;
 
-        if (transforms.size() <= 1 && paths.size() == 1)
+        if (transforms.size() <= 1 && Npaths == 1)
         {
-            PathIterator path(paths[0]);
+            PathIterator path(Py::Object(paths_arr[0], false));
+            //PathIterator path(paths[0]);
             if (Ntransforms)
             {
                 trans = transforms[0];
@@ -795,7 +830,8 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         } else {
             for (i = 0; i < N; ++i)
             {
-                PathIterator path(paths[i % Npaths]);
+                PathIterator path(Py::Object(paths_arr[i % Npaths], false));
+                //PathIterator path(paths[i % Npaths]);
                 if (Ntransforms)
                 {
                     trans = transforms[i % Ntransforms];
@@ -816,14 +852,17 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
                 ::get_path_extents(path, trans, &x0, &y0, &x1, &y1, &xm, &ym);
             }
         }
+    /*
     }
     catch (...)
     {
         Py_XDECREF(offsets);
         throw;
     }
-
-    Py_XDECREF(offsets);
+    */
+    Py_DECREF(__paths);
+    Py_DECREF(__transforms);
+    Py_DECREF(offsets);
 
     //Py::Tuple result(4);
     //result[0] = Py::Float(x0);
