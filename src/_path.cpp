@@ -1530,18 +1530,41 @@ Fail:
 //_path_module::count_bboxes_overlapping_bbox(const Py::Tuple& args)
 PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
 {
+    PyObject *_bbox, *_bboxes;
+    if (!PyArg_ParseTuple(_args, "OO", &_bbox, &_bboxes)) {
+        return NULL;
+    }
+
+    double ax0, ay0, ax1, ay1;
+    if (!py_convert_bbox(_bbox, ax0, ay0, ax1, ay1))
+    {
+        PyErr_SetString(PyExc_ValueError,
+                "First argument to count_bboxes_overlapping_bbox must be a Bbox object.");
+        return NULL;
+    }
+
+    PyObject* __bboxes = PySequence_Fast(_bboxes, "bboxes must be a sequence");
+    if (__bboxes == NULL)
+    {
+        return NULL;
+    }
+    PyObject** bboxes = PySequence_Fast_ITEMS(__bboxes);
+    size_t num_bboxes = PySequence_Fast_GET_SIZE(__bboxes);
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(2);
 
     Py::Object              bbox   = args[0];
     Py::SeqBase<Py::Object> bboxes = args[1];
-
-    double ax0, ay0, ax1, ay1;
+    */
     double bx0, by0, bx1, by1;
     long count = 0;
 
+    /*
     if (py_convert_bbox(bbox.ptr(), ax0, ay0, ax1, ay1))
     {
+    */
         if (ax1 < ax0)
         {
             std::swap(ax0, ax1);
@@ -1551,11 +1574,12 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
             std::swap(ay0, ay1);
         }
 
-        size_t num_bboxes = bboxes.size();
+        //size_t num_bboxes = bboxes.size();
         for (size_t i = 0; i < num_bboxes; ++i)
         {
-            Py::Object bbox_b = bboxes[i];
-            if (py_convert_bbox(bbox_b.ptr(), bx0, by0, bx1, by1))
+            if (py_convert_bbox(bboxes[i], bx0, by0, bx1, by1))
+            //Py::Object bbox_b = bboxes[i];
+            //if (py_convert_bbox(bbox_b.ptr(), bx0, by0, bx1, by1))
             {
                 if (bx1 < bx0)
                 {
@@ -1575,14 +1599,20 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
             }
             else
             {
-                throw Py::ValueError("Non-bbox object in bboxes list");
+                PyErr_SetString(PyExc_ValueError, "Non-bbox object in bboxes list");
+                Py_DECREF(__bboxes);
+                return NULL;
+                //throw Py::ValueError("Non-bbox object in bboxes list");
             }
         }
+    /*
     }
     else
     {
         throw Py::ValueError("First argument to count_bboxes_overlapping_bbox must be a Bbox object.");
     }
+    */
+    Py_DECREF(__bboxes);
 
     //return Py::Int(count);
     return PyInt_FromLong(count);
