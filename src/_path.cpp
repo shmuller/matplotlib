@@ -1386,36 +1386,53 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
 //_path_module::affine_transform(const Py::Tuple& args)
 PyObject *_affine_transform(PyObject *self, PyObject *_args)
 {
+    PyObject *_vertices, *_transform;
+    if (!PyArg_ParseTuple(_args, "OO", &_vertices, &_transform)) {
+        return NULL;
+    }
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(2);
 
     Py::Object vertices_obj = args[0];
     Py::Object transform_obj = args[1];
-
+    */
     PyArrayObject* vertices = NULL;
     PyArrayObject* transform = NULL;
     PyArrayObject* result = NULL;
 
+    int nd;
+    size_t n;
+    npy_intp dims[2];
+    /*
     try
     {
-        vertices = (PyArrayObject*)PyArray_FromObject
-                   (vertices_obj.ptr(), PyArray_DOUBLE, 1, 2);
+    */
+        vertices = (PyArrayObject*)PyArray_FromObject(_vertices, PyArray_DOUBLE, 1, 2);
+        //vertices = (PyArrayObject*)PyArray_FromObject
+        //           (vertices_obj.ptr(), PyArray_DOUBLE, 1, 2);
         if (!vertices ||
             (PyArray_NDIM(vertices) == 2 && PyArray_DIM(vertices, 0) != 0 &&
              PyArray_DIM(vertices, 1) != 2) ||
             (PyArray_NDIM(vertices) == 1 &&
              PyArray_DIM(vertices, 0) != 2 && PyArray_DIM(vertices, 0) != 0))
         {
-            throw Py::ValueError("Invalid vertices array.");
+            PyErr_SetString(PyExc_ValueError, "Invalid vertices array.");
+            goto Fail;
+            //throw Py::ValueError("Invalid vertices array.");
         }
 
-        transform = (PyArrayObject*) PyArray_FromObject
-                    (transform_obj.ptr(), PyArray_DOUBLE, 2, 2);
+        transform = (PyArrayObject*)PyArray_FromObject(_transform, PyArray_DOUBLE, 2, 2);
+        //transform = (PyArrayObject*) PyArray_FromObject
+        //            (transform_obj.ptr(), PyArray_DOUBLE, 2, 2);
         if (!transform ||
             PyArray_DIM(transform, 0) != 3 ||
             PyArray_DIM(transform, 1) != 3)
         {
-            throw Py::ValueError("Invalid transform.");
+            PyErr_SetString(PyExc_ValueError, "Invalid transform.");
+            goto Fail;
+            //throw Py::ValueError("Invalid transform.");
         }
 
         double a, b, c, d, e, f;
@@ -1439,9 +1456,8 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         }
 
         // PyPy's PyArray_DIMS() is inefficient, avoid where possible
-        int nd = PyArray_NDIM(vertices);
-        size_t n = PyArray_DIM(vertices, 0);
-        npy_intp dims[2] = {n};
+        nd = PyArray_NDIM(vertices);
+        n = dims[0] = PyArray_DIM(vertices, 0);
         if (nd == 2) dims[1] = PyArray_DIM(vertices, 1);
         result = (PyArrayObject*)PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
                  
@@ -1449,7 +1465,9 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         //         (PyArray_NDIM(vertices), PyArray_DIMS(vertices), PyArray_DOUBLE);
         if (result == NULL)
         {
-            throw Py::MemoryError("Could not allocate memory for path");
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate memory for path");
+            goto Fail;
+            //throw Py::MemoryError("Could not allocate memory for path");
         }
         if (nd == 2)
         {
@@ -1490,6 +1508,7 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
             *vertex_out++ = a * x + c * y + e;
             *vertex_out++ = b * x + d * y + f;
         }
+    /*
     }
     catch (...)
     {
@@ -1498,7 +1517,8 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         Py_XDECREF(result);
         throw;
     }
-
+    */
+Fail:
     Py_XDECREF(vertices);
     Py_XDECREF(transform);
 
