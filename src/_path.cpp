@@ -1689,6 +1689,15 @@ path_intersects_path(PathIterator& p1, PathIterator& p2)
 //_path_module::path_intersects_path(const Py::Tuple& args)
 PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
 {
+    PyObject *_p1, *_p2, *_filled = Py_False;
+    if (!PyArg_ParseTuple(_args, "OO|O", &_p1, &_p2, &_filled)) {
+        return NULL;
+    }
+
+    PathIterator p1(Py::Object(_p1, false));
+    PathIterator p2(Py::Object(_p2, false));
+    bool filled = PyObject_IsTrue(_filled) != 0;
+    /*
     const Py::Tuple args(_args);
     args.verify_length(2, 3);
 
@@ -1700,7 +1709,7 @@ PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
     {
         filled = args[2].isTrue();
     }
-
+    */
     bool isect;
     if (!filled)
     {
