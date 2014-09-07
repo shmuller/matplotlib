@@ -877,6 +877,37 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
 //_path_module::point_in_path_collection(const Py::Tuple& args)
 PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
 {
+    double x, y, radius;
+    PyObject *_master_transform, *_paths, *_transforms, *_offsets, *_offset_trans, *_filled;
+    const char *_offset_position;
+    if (!PyArg_ParseTuple(_args, "dddOOOOOOs", &x, &y, &radius,
+             &_master_transform, &_paths, &_transforms, &_offsets, &_offset_trans, &_filled, 
+             &_offset_position)) {
+        return NULL;
+    }
+    agg::trans_affine master_transform = py_to_agg_transformation_matrix
+        (_master_transform, false);
+    agg::trans_affine offset_trans     = py_to_agg_transformation_matrix
+        (_offset_trans, false);
+
+    PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
+    if (__paths == NULL) 
+    {
+        return NULL;
+    }
+    PyObject* __transforms = PySequence_Fast(_transforms, "transforms must be a sequence");
+    if (__transforms == NULL) 
+    {
+        Py_DECREF(__paths);
+        return NULL;
+    }
+    PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
+    PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
+
+    bool filled = PyObject_IsTrue(_filled) != 0;
+    std::string offset_position(_offset_position);
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(10);
 
@@ -891,23 +922,29 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     agg::trans_affine       offset_trans     = py_to_agg_transformation_matrix(args[7].ptr());
     bool                    filled           = Py::Boolean(args[8]);
     std::string             offset_position  = Py::String(args[9]).encode("utf-8");
-
+    */
     bool data_offsets = (offset_position == "data");
 
     PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
-        offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
+        _offsets, PyArray_DOUBLE, 0, 2);
+    //PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
+    //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
     if (!offsets ||
             (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
             (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
     {
         Py_XDECREF(offsets);
-        throw Py::ValueError("Offsets array must be Nx2");
+        PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
+        return NULL;
+        //throw Py::ValueError("Offsets array must be Nx2");
     }
 
-    size_t Npaths      = paths.length();
+    size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
+    //size_t Npaths      = paths.length();
     size_t Noffsets    = PyArray_DIM(offsets, 0);
     size_t N           = std::max(Npaths, Noffsets);
-    size_t Ntransforms = std::min(transforms_obj.length(), N);
+    size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
+    //size_t Ntransforms = std::min(transforms_obj.length(), N);
     size_t i;
 
     // Convert all of the transforms up front
@@ -917,17 +954,23 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     for (i = 0; i < Ntransforms; ++i)
     {
         agg::trans_affine trans = py_to_agg_transformation_matrix
-                                  (transforms_obj[i].ptr(), false);
+                                  (transforms_arr[i], false);
+        //agg::trans_affine trans = py_to_agg_transformation_matrix
+        //                          (transforms_obj[i].ptr(), false);
         trans *= master_transform;
         transforms.push_back(trans);
     }
 
-    Py::List result;
     agg::trans_affine trans;
 
+    PyObject* result = PyList_New(0);
+    if (result == NULL) goto Fail;
+    //Py::List result;
+    
     for (i = 0; i < N; ++i)
     {
-        PathIterator path(paths[i % Npaths]);
+        PathIterator path(Py::Object(paths_arr[i % Npaths], false));
+        //PathIterator path(paths[i % Npaths]);
 
         if (Ntransforms)
         {
@@ -952,19 +995,28 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
 
         if (filled)
         {
-            if (::point_in_path(x, y, radius, path, trans))
-                result.append(Py::Int((int)i));
+            if (::point_in_path(x, y, radius, path, trans) && 
+                PyList_Append(result, PyInt_FromLong((int)i)) == -1) goto Fail;
+            //if (::point_in_path(x, y, radius, path, trans))
+            //    result.append(Py::Int((int)i));
         }
         else
         {
-            if (::point_on_path(x, y, radius, path, trans))
-                result.append(Py::Int((int)i));
+            if (::point_on_path(x, y, radius, path, trans) && 
+                PyList_Append(result, PyInt_FromLong((int)i)) == -1) goto Fail;
+            //if (::point_on_path(x, y, radius, path, trans))
+            //    result.append(Py::Int((int)i));
         }
     }
 
-    //return result;
-    Py_INCREF(result.ptr());
-    return result.ptr();
+Fail:
+    Py_DECREF(__paths);
+    Py_DECREF(__transforms);
+    Py_DECREF(offsets);
+
+    return result;
+    //Py_INCREF(result.ptr());
+    //return result.ptr();
 }
 
 bool
