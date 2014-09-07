@@ -1725,12 +1725,14 @@ PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
     return PyInt_FromLong(isect);
 }
 
-void
-_add_polygon(Py::List& polygons, const std::vector<double>& polygon)
+int
+_add_polygon(PyObject *_polygons, const std::vector<double>& polygon)
+//void
+//_add_polygon(Py::List& polygons, const std::vector<double>& polygon)
 {
     if (polygon.size() == 0)
     {
-        return;
+        return 0;
     }
     npy_intp polygon_dims[] = { static_cast<npy_intp>(polygon.size() / 2), 2, 0 };
     PyArrayObject* polygon_array = NULL;
@@ -1738,18 +1740,22 @@ _add_polygon(Py::List& polygons, const std::vector<double>& polygon)
                     (2, polygon_dims, PyArray_DOUBLE);
     if (!polygon_array)
     {
-        throw Py::MemoryError("Error creating polygon array");
+        PyErr_SetString(PyExc_MemoryError, "Error creating polygon array");
+        return -1;
+        //throw Py::MemoryError("Error creating polygon array");
     }
     double* polygon_data = (double*)PyArray_DATA(polygon_array);
     memcpy(polygon_data, &polygon[0], polygon.size() * sizeof(double));
-    polygons.append(Py::Object((PyObject*)polygon_array, true));
+    int status = PyList_Append(_polygons, (PyObject*)polygon_array);
+    Py_DECREF(polygon_array);
+    return status;
+    //polygons.append(Py::Object((PyObject*)polygon_array, true));
 }
 
 //Py::Object
 //_path_module::convert_path_to_polygons(const Py::Tuple& args)
 PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
 {
-    const Py::Tuple args(_args);
     typedef agg::conv_transform<PathIterator>  transformed_path_t;
     typedef PathNanRemover<transformed_path_t> nan_removal_t;
     typedef PathClipper<nan_removal_t>         clipped_t;
@@ -1758,13 +1764,23 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
 
     typedef std::vector<double> vertices_t;
 
+    PyObject *_path, *_trans;
+    double width, height;
+    if (!PyArg_ParseTuple(_args, "OOdd", &_path, &_trans, &width, &height)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+
+    /*
+    const Py::Tuple args(_args);
     args.verify_length(4);
 
     PathIterator path(args[0]);
     agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
     double width = Py::Float(args[2]);
     double height = Py::Float(args[3]);
-
+    */
     bool do_clip = width != 0.0 && height != 0.0;
 
     bool simplify = path.should_simplify();
@@ -1775,7 +1791,9 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
     simplify_t         simplified(clipped, simplify, path.simplify_threshold());
     curve_t            curve(simplified);
 
-    Py::List polygons;
+    PyObject* polygons = PyList_New(0);
+    if (polygons == NULL) return NULL;
+    //Py::List polygons;
     vertices_t polygon;
     double x, y;
     unsigned code;
@@ -1790,7 +1808,7 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
             {
                 polygon.push_back(polygon[0]);
                 polygon.push_back(polygon[1]);
-                _add_polygon(polygons, polygon);
+                if (_add_polygon(polygons, polygon) == -1) goto Fail;
             }
             polygon.clear();
         }
@@ -1798,7 +1816,7 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
         {
             if (code == agg::path_cmd_move_to)
             {
-                _add_polygon(polygons, polygon);
+                if (_add_polygon(polygons, polygon) == -1) goto Fail;
                 polygon.clear();
             }
             polygon.push_back(x);
@@ -1806,11 +1824,15 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
         }
     }
 
-    _add_polygon(polygons, polygon);
+    if (_add_polygon(polygons, polygon) == -1) goto Fail;
 
-    //return polygons;
-    Py_INCREF(polygons.ptr());
-    return polygons.ptr();
+    return polygons;
+    //Py_INCREF(polygons.ptr());
+    //return polygons.ptr();
+
+Fail:
+    Py_DECREF(polygons);
+    return NULL;
 }
 
 template<class VertexSource>
