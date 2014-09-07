@@ -565,7 +565,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     if (!input_minpos || PyArray_DIM(input_minpos, 0) != 2)
     {
         PyErr_SetString(PyExc_TypeError,
-            "Argument 4 to update_path_extents must be a length-2 numpy array.");
+                "Argument 4 to update_path_extents must be a length-2 numpy array.");
         Py_XDECREF(input_minpos);
         return NULL;
     }
@@ -1291,19 +1291,35 @@ clip_to_rect(Path& path,
 //_path_module::clip_path_to_rect(const Py::Tuple &args)
 PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
 {
+    PyObject *_path, *_bbox, *_inside;
+    if (!PyArg_ParseTuple(_args, "OOO", &_path, &_bbox, &_inside)) {
+        return NULL;
+    }
+    PathIterator path(Py::Object(_path, false));
+    bool inside = PyObject_IsTrue(_inside) != 0;
+
+    double x0, y0, x1, y1;
+    if (!py_convert_bbox(_bbox, x0, y0, x1, y1))
+    {
+        PyErr_SetString(PyExc_TypeError,
+                "Argument 2 to clip_to_rect must be a Bbox object.");
+        return NULL;
+    }
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(3);
 
     PathIterator path(args[0]);
     Py::Object bbox_obj = args[1];
     bool inside = Py::Boolean(args[2]);
-
+    
     double x0, y0, x1, y1;
     if (!py_convert_bbox(bbox_obj.ptr(), x0, y0, x1, y1))
     {
         throw Py::TypeError("Argument 2 to clip_to_rect must be a Bbox object.");
     }
-
+    */
     std::vector<Polygon> results;
     typedef agg::conv_curve<PathIterator> curve_t;
     curve_t curve(path);
@@ -1315,11 +1331,14 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
     PyObject* py_results = PyList_New(results.size());
     if (!py_results)
     {
-        throw Py::RuntimeError("Error creating results list");
+        PyErr_SetString(PyExc_RuntimeError, "Error creating results list");
+        return NULL;
+        //throw Py::RuntimeError("Error creating results list");
     }
-
+    /*
     try
     {
+    */
         for (std::vector<Polygon>::const_iterator p = results.begin(); p != results.end(); ++p)
         {
             size_t size = p->size();
@@ -1327,7 +1346,10 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
             PyArrayObject* pyarray = (PyArrayObject*)PyArray_SimpleNew(2, dims, PyArray_DOUBLE);
             if (pyarray == NULL)
             {
-                throw Py::MemoryError("Could not allocate result array");
+                PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+                Py_DECREF(py_results);
+                return NULL;
+                //throw Py::MemoryError("Could not allocate result array");
             }
 
             double *data = (double *) PyArray_DATA(pyarray);
@@ -1342,16 +1364,20 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
 
             if (PyList_SetItem(py_results, p - results.begin(), (PyObject *)pyarray) == -1)
             {
-                throw Py::RuntimeError("Error creating results list");
+                PyErr_SetString(PyExc_RuntimeError, "Error creating results list");
+                Py_DECREF(py_results);
+                return NULL;
+                //throw Py::RuntimeError("Error creating results list");
             }
         }
+    /*
     }
     catch (...)
     {
         Py_XDECREF(py_results);
         throw;
     }
-
+    */
     //return Py::Object(py_results, true);
     return py_results;
 }
