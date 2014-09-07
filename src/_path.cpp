@@ -1049,6 +1049,17 @@ path_in_path(PathIterator& a, const agg::trans_affine& atrans,
 //_path_module::path_in_path(const Py::Tuple& args)
 PyObject *_path_in_path(PyObject *self, PyObject *_args)
 {
+    PyObject *_a, *_atrans, *_b, *_btrans;
+    if (!PyArg_ParseTuple(_args, "OOOO", &_a, &_atrans, &_b, &_btrans)) {
+        return NULL;
+    }
+    PathIterator a(Py::Object(_a, false));
+    agg::trans_affine atrans = py_to_agg_transformation_matrix(_atrans, false);
+
+    PathIterator b(Py::Object(_b, false));
+    agg::trans_affine btrans = py_to_agg_transformation_matrix(_btrans, false);
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(4);
 
@@ -1058,7 +1069,7 @@ PyObject *_path_in_path(PyObject *self, PyObject *_args)
     PathIterator b(args[2]);
     agg::trans_affine btrans = py_to_agg_transformation_matrix(
         args[3].ptr(), false);
-
+    */
     //return Py::Int(::path_in_path(a, atrans, b, btrans));
     return PyInt_FromLong(::path_in_path(a, atrans, b, btrans));
 }
