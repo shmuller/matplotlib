@@ -1362,6 +1362,9 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
             data[2*size]   = (*p)[0].x;
             data[2*size+1] = (*p)[0].y;
 
+            // cannot fail
+            PyList_SET_ITEM(py_results, p - results.begin(), (PyObject *)pyarray);
+            /*
             if (PyList_SetItem(py_results, p - results.begin(), (PyObject *)pyarray) == -1)
             {
                 PyErr_SetString(PyExc_RuntimeError, "Error creating results list");
@@ -1369,6 +1372,7 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
                 return NULL;
                 //throw Py::RuntimeError("Error creating results list");
             }
+            */
         }
     /*
     }
