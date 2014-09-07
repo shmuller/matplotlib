@@ -732,37 +732,41 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
     Py::Object              offsets_obj      = args[3];
     agg::trans_affine       offset_trans     = py_to_agg_transformation_matrix(args[4].ptr(), false);
     */
-    PyArrayObject* offsets = NULL;
     double x0, y0, x1, y1, xm, ym;
 
     /*
     try
     {
-    */
-        //offsets = (PyArrayObject*)PyArray_FromObject(
-        //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
-        offsets = (PyArrayObject*)PyArray_FromObject(_offsets, PyArray_DOUBLE, 0, 2);
-        if (!offsets ||
-            (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
-            (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
-        {
-            PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
-            Py_XDECREF(offsets);
-            return NULL;
-            //throw Py::ValueError("Offsets array must be Nx2");
-        }
-
+    */ 
         PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
         if (__paths == NULL) 
         {
             return NULL;
         }
+
         PyObject* __transforms = PySequence_Fast(_transforms, "transforms must be a sequence");
         if (__transforms == NULL) 
         {
             Py_DECREF(__paths);
             return NULL;
         }
+        
+        //offsets = (PyArrayObject*)PyArray_FromObject(
+        //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
+        PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
+            _offsets, PyArray_DOUBLE, 0, 2);
+        if (!offsets ||
+            (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
+            (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
+        {
+            PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
+            Py_DECREF(__paths);
+            Py_DECREF(__transforms);
+            Py_XDECREF(offsets);
+            return NULL;
+            //throw Py::ValueError("Offsets array must be Nx2");
+        }
+
         PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
         PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
 
@@ -901,8 +905,22 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
         Py_DECREF(__paths);
         return NULL;
     }
-    PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
-    PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
+
+    //PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
+    //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
+    PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
+        _offsets, PyArray_DOUBLE, 0, 2);
+    if (!offsets ||
+        (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
+        (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
+    {
+        PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
+        Py_DECREF(__paths);
+        Py_DECREF(__transforms);
+        Py_XDECREF(offsets);
+        return NULL;
+        //throw Py::ValueError("Offsets array must be Nx2");
+    }
 
     bool filled = PyObject_IsTrue(_filled) != 0;
     std::string offset_position(_offset_position);
@@ -925,19 +943,8 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     */
     bool data_offsets = (offset_position == "data");
 
-    PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
-        _offsets, PyArray_DOUBLE, 0, 2);
-    //PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
-    //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
-    if (!offsets ||
-            (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
-            (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
-    {
-        Py_XDECREF(offsets);
-        PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
-        return NULL;
-        //throw Py::ValueError("Offsets array must be Nx2");
-    }
+    PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
+    PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
 
     size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
     //size_t Npaths      = paths.length();
@@ -964,7 +971,7 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     agg::trans_affine trans;
 
     PyObject* result = PyList_New(0);
-    if (result == NULL) goto Fail;
+    if (result == NULL) goto Done;
     //Py::List result;
     
     for (i = 0; i < N; ++i)
@@ -995,21 +1002,32 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
 
         if (filled)
         {
-            if (::point_in_path(x, y, radius, path, trans) && 
-                PyList_Append(result, PyInt_FromLong((int)i)) == -1) goto Fail;
+            if (::point_in_path(x, y, radius, path, trans)) {
+                PyObject* _i = PyInt_FromLong((int)i);
+                int status = PyList_Append(result, _i);
+                Py_DECREF(_i);
+                if (status == -1) goto Fail;
+            }
             //if (::point_in_path(x, y, radius, path, trans))
             //    result.append(Py::Int((int)i));
         }
         else
         {
-            if (::point_on_path(x, y, radius, path, trans) && 
-                PyList_Append(result, PyInt_FromLong((int)i)) == -1) goto Fail;
+            if (::point_on_path(x, y, radius, path, trans)) {
+                PyObject* _i = PyInt_FromLong((int)i);
+                int status = PyList_Append(result, _i);
+                Py_DECREF(_i);
+                if (status == -1) goto Fail;
+            }
             //if (::point_on_path(x, y, radius, path, trans))
             //    result.append(Py::Int((int)i));
         }
     }
 
 Fail:
+    Py_DECREF(result);
+    result = NULL;
+Done:
     Py_DECREF(__paths);
     Py_DECREF(__transforms);
     Py_DECREF(offsets);
