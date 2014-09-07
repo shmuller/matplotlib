@@ -1915,6 +1915,66 @@ _cleanup_path(PathIterator& path, const agg::trans_affine& trans,
 //_path_module::cleanup_path(const Py::Tuple& args)
 PyObject *_cleanup_path(PyObject *self, PyObject *_args)
 {
+    PyObject *_path, *_trans, *_nans, *_clip, *_snap;
+    double stroke_width;
+    PyObject *_simplify, *_return_curves, *_sketch_params;
+    if (!PyArg_ParseTuple(_args, "OOOOOdOOO", &_path, &_trans, &_nans, &_clip, &_snap,
+             &stroke_width, &_simplify, &_return_curves, &_sketch_params)) {
+        return NULL;
+    }
+
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+    bool remove_nans = PyObject_IsTrue(_nans) != 0;
+    bool do_clip = _clip != Py_None;
+
+    agg::rect_base<double> clip_rect;
+    if (do_clip) 
+    {
+        double x1, y1, x2, y2;
+        if (!PyArg_ParseTuple(_clip, "dddd", &x1, &y1, &x2, &y2)) {
+            return NULL;
+        }
+        clip_rect.init(x1, y1, x2, y2);
+    }
+
+    e_snap_mode snap_mode;
+    if (_snap == Py_None)
+    {
+        snap_mode = SNAP_AUTO;
+    }
+    else if (PyObject_IsTrue(_snap))
+    {
+        snap_mode = SNAP_TRUE;
+    }
+    else
+    {
+        snap_mode = SNAP_FALSE;
+    }
+
+    bool simplify;
+    if (_simplify == Py_None)
+    {
+        simplify = path.should_simplify();
+    }
+    else
+    {
+        simplify = PyObject_IsTrue(_simplify) != 0;
+    }
+
+    bool return_curves = PyObject_IsTrue(_return_curves) != 0;
+
+    double sketch_scale = 0.0;
+    double sketch_length = 0.0;
+    double sketch_randomness = 0.0;
+    if (_sketch_params != Py_None && 
+        !PyArg_ParseTuple(_sketch_params, "ddd", 
+            &sketch_scale, &sketch_length, &sketch_randomness)) 
+    {
+        return NULL;
+    }
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(9);
 
@@ -1981,7 +2041,7 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
         sketch_length = Py::Float(sketch[1]);
         sketch_randomness = Py::Float(sketch[2]);
     }
-
+    */
     std::vector<double> vertices;
     std::vector<npy_uint8> codes;
 
@@ -1995,20 +2055,27 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
     PyArrayObject* vertices_obj = NULL;
     PyArrayObject* codes_obj = NULL;
     //Py::Tuple result(2);
+    /*
     try
     {
+    */
         vertices_obj = (PyArrayObject*)PyArray_SimpleNew
                        (2, dims, PyArray_DOUBLE);
         if (vertices_obj == NULL)
         {
-            throw Py::MemoryError("Could not allocate result array");
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+            return NULL;
+            //throw Py::MemoryError("Could not allocate result array");
         }
 
         codes_obj = (PyArrayObject*)PyArray_SimpleNew
                     (1, dims, PyArray_UINT8);
         if (codes_obj == NULL)
         {
-            throw Py::MemoryError("Could not allocate result array");
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+            Py_DECREF(vertices_obj);
+            return NULL;
+            //throw Py::MemoryError("Could not allocate result array");
         }
 
         memcpy(PyArray_DATA(vertices_obj), &vertices[0], sizeof(double) * 2 * length);
@@ -2016,6 +2083,7 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
 
         //result[0] = Py::Object((PyObject*)vertices_obj, true);
         //result[1] = Py::Object((PyObject*)codes_obj, true);
+    /*
     }
     catch (...)
     {
@@ -2023,6 +2091,7 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
         Py_XDECREF(codes_obj);
         throw;
     }
+    */
 
     //return result;
     return Py_BuildValue("(NN)", vertices_obj, codes_obj);
