@@ -2101,6 +2101,38 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
 //_path_module::convert_to_svg(const Py::Tuple& args)
 PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
 {
+    PyObject *_path, *_trans, *_clip, *_simplify;
+    int precision;
+    if (!PyArg_ParseTuple(_args, "OOOOi", 
+            &_path, &_trans, &_clip, &_simplify, &precision)) {
+        return NULL;
+    }
+    
+    PathIterator path(Py::Object(_path, false));
+    agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
+    bool do_clip = PyObject_IsTrue(_clip) != 0;
+
+    agg::rect_base<double> clip_rect;
+    if (do_clip) 
+    {
+        double x1, y1, x2, y2;
+        if (!PyArg_ParseTuple(_clip, "dddd", &x1, &y1, &x2, &y2)) {
+            return NULL;
+        }
+        clip_rect.init(x1, y1, x2, y2);
+    }
+
+    bool simplify;
+    if (_simplify == Py_None)
+    {
+        simplify = path.should_simplify();
+    }
+    else
+    {
+        simplify = PyObject_IsTrue(_simplify) != 0;
+    }
+
+    /*
     const Py::Tuple args(_args);
     args.verify_length(5);
 
@@ -2138,7 +2170,7 @@ PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
     }
 
     int precision = Py::Int(args[4]);
-
+    */
     char format[64];
     snprintf(format, 64, "%%.%dg %%.%dg", precision, precision);
    
