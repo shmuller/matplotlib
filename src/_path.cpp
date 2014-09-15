@@ -24,69 +24,6 @@ struct XY
     XY(double x_, double y_) : x(x_), y(y_) {}
 };
 
-/*
-// the extension module
-class _path_module : public Py::ExtensionModule<_path_module>
-{
-public:
-    _path_module()
-            : Py::ExtensionModule<_path_module>("_path")
-    {
-        add_varargs_method("point_in_path", &_path_module::point_in_path,
-                           "point_in_path(x, y, path, trans)");
-        add_varargs_method("points_in_path", &_path_module::points_in_path,
-                           "points_in_path(points, path, trans)");
-        add_varargs_method("point_on_path", &_path_module::point_on_path,
-                           "point_on_path(x, y, r, path, trans)");
-        add_varargs_method("get_path_extents", &_path_module::get_path_extents,
-                           "get_path_extents(path, trans)");
-        add_varargs_method("update_path_extents", &_path_module::update_path_extents,
-                           "update_path_extents(path, trans, bbox, minpos)");
-        add_varargs_method("get_path_collection_extents", &_path_module::get_path_collection_extents,
-                           "get_path_collection_extents(trans, paths, transforms, offsets, offsetTrans)");
-        add_varargs_method("point_in_path_collection", &_path_module::point_in_path_collection,
-                           "point_in_path_collection(x, y, r, trans, paths, transforms, offsets, offsetTrans, filled)");
-        add_varargs_method("path_in_path", &_path_module::path_in_path,
-                           "path_in_path(a, atrans, b, btrans)");
-        add_varargs_method("clip_path_to_rect", &_path_module::clip_path_to_rect,
-                           "clip_path_to_rect(path, bbox, inside)");
-        add_varargs_method("affine_transform", &_path_module::affine_transform,
-                           "affine_transform(vertices, transform)");
-        add_varargs_method("count_bboxes_overlapping_bbox", &_path_module::count_bboxes_overlapping_bbox,
-                           "count_bboxes_overlapping_bbox(bbox, bboxes)");
-        add_varargs_method("path_intersects_path", &_path_module::path_intersects_path,
-                           "path_intersects_path(p1, p2)");
-        add_varargs_method("convert_path_to_polygons", &_path_module::convert_path_to_polygons,
-                           "convert_path_to_polygons(path, trans, width, height)");
-        add_varargs_method("cleanup_path", &_path_module::cleanup_path,
-                           "cleanup_path(path, trans, remove_nans, clip, snap, simplify, curves, sketch_params)");
-        add_varargs_method("convert_to_svg", &_path_module::convert_to_svg,
-                           "convert_to_svg(path, trans, clip, simplify, precision)");
-        initialize("Helper functions for paths");
-    }
-
-    virtual ~_path_module() {}
-
-private:
-    Py::Object point_in_path(const Py::Tuple& args);
-    Py::Object points_in_path(const Py::Tuple& args);
-    Py::Object point_on_path(const Py::Tuple& args);
-    Py::Object get_path_extents(const Py::Tuple& args);
-    Py::Object update_path_extents(const Py::Tuple& args);
-    Py::Object get_path_collection_extents(const Py::Tuple& args);
-    Py::Object point_in_path_collection(const Py::Tuple& args);
-    Py::Object path_in_path(const Py::Tuple& args);
-    Py::Object clip_path_to_rect(const Py::Tuple& args);
-    Py::Object affine_transform(const Py::Tuple& args);
-    Py::Object count_bboxes_overlapping_bbox(const Py::Tuple& args);
-    Py::Object path_intersects_path(const Py::Tuple& args);
-    Py::Object convert_path_to_polygons(const Py::Tuple& args);
-    Py::Object cleanup_path(const Py::Tuple& args);
-    Py::Object convert_to_svg(const Py::Tuple& args);
-};
-
-*/
-
 //
 // The following function was found in the Agg 2.3 examples (interactive_polygon.cpp).
 // It has been generalized to work on (possibly curved) polylines, rather than
@@ -343,8 +280,6 @@ point_on_path(const double x, const double y, const double r,
     return result;
 }
 
-//Py::Object
-//_path_module::point_in_path(const Py::Tuple& args)
 PyObject *_point_in_path(PyObject *self, PyObject *_args)
 {
     double x, y, r;
@@ -356,15 +291,11 @@ PyObject *_point_in_path(PyObject *self, PyObject *_args)
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     
     if (::point_in_path(x, y, r, path, trans)) {
-        //return Py::Int(1);
         return PyInt_FromLong(1);
     }
-    //return Py::Int(0);
     return PyInt_FromLong(0);
 }
 
-//Py::Object
-//_path_module::points_in_path(const Py::Tuple& args)
 PyObject *_points_in_path(PyObject *self, PyObject *_args)
 {
     double r;
@@ -394,29 +325,6 @@ PyObject *_points_in_path(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(4);
-
-    npy_intp n;
-    PyArrayObject* points_array;
-    points_array = (PyArrayObject*)PyArray_FromObject(args[0].ptr(), PyArray_DOUBLE, 2, 2);
-    if (points_array == NULL || PyArray_DIM(points_array, 1) != 2) {
-        throw Py::TypeError(
-            "Argument 0 to points_in_path must be an Nx2 numpy array");
-
-    }
-    double r = Py::Float(args[1]);
-    PathIterator path(args[2]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[3].ptr(), false);
-
-    n = PyArray_DIM(points_array, 0);
-    PyObject* result = PyArray_ZEROS(1, &n, PyArray_BOOL, 0);
-    if (result == NULL) {
-        throw Py::MemoryError("Could not allocate memory for result");
-    }
-    */
-
     ::points_in_path(PyArray_DATA(points_array),
                      PyArray_STRIDE(points_array, 0),
                      PyArray_STRIDE(points_array, 1),
@@ -424,12 +332,9 @@ PyObject *_points_in_path(PyObject *self, PyObject *_args)
                      (npy_bool *)PyArray_DATA(result));
     Py_DECREF(points_array);
 
-    //return Py::Object(result, true);
     return result;
 }
 
-//Py::Object
-//_path_module::point_on_path(const Py::Tuple& args)
 PyObject *_point_on_path(PyObject *self, PyObject *_args)
 {
     double x, y, r;
@@ -442,10 +347,8 @@ PyObject *_point_on_path(PyObject *self, PyObject *_args)
 
     if (::point_on_path(x, y, r, path, trans))
     {
-        //return Py::Int(1);
         return PyInt_FromLong(1);
     }
-    //return Py::Int(0);
     return PyInt_FromLong(0);
 }
 
@@ -490,8 +393,6 @@ get_path_extents(PathIterator& path, const agg::trans_affine& trans,
     }
 }
 
-//Py::Object
-//_path_module::get_path_extents(const Py::Tuple& args)
 PyObject *_get_path_extents(PyObject *self, PyObject *_args)
 {
     PyObject *_path, *_trans;
@@ -500,13 +401,7 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     }
     PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(2);
 
-    PathIterator path(args[0]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
-    */
     npy_intp extent_dims[] = { 2, 2, 0 };
     double* extents_data = NULL;
     double xm, ym;
@@ -517,7 +412,6 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     {
         PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
         return NULL;
-        //throw Py::MemoryError("Could not allocate result array");
     }
 
     extents_data = (double*)PyArray_DATA(extents);
@@ -534,12 +428,9 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
                        &extents_data[2], &extents_data[3], &xm, &ym);
     
-    //return Py::Object((PyObject*)extents, true);
     return (PyObject*)extents;
 }
 
-//Py::Object
-//_path_module::update_path_extents(const Py::Tuple& args)
 PyObject *_update_path_extents(PyObject *self, PyObject *_args)
 {
     PyObject *_path, *_trans, *_bbox, *_minpos, *_ignore;
@@ -573,44 +464,6 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     ym = *(double*)PyArray_GETPTR1(input_minpos, 1);
     Py_DECREF(input_minpos);
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(5);
-
-    double x0, y0, x1, y1;
-    PathIterator path(args[0]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(
-        args[1].ptr(), false);
-
-    if (!py_convert_bbox(args[2].ptr(), x0, y0, x1, y1))
-    {
-        throw Py::ValueError(
-            "Must pass Bbox object as arg 3 of update_path_extents");
-    }
-    Py::Object minpos_obj = args[3];
-    bool ignore = Py::Boolean(args[4]);
-
-    double xm, ym;
-    PyArrayObject* input_minpos = NULL;
-    try
-    {
-        input_minpos = (PyArrayObject*)PyArray_FromObject(
-            minpos_obj.ptr(), PyArray_DOUBLE, 1, 1);
-        if (!input_minpos || PyArray_DIM(input_minpos, 0) != 2)
-        {
-            throw Py::TypeError(
-                "Argument 4 to update_path_extents must be a length-2 numpy array.");
-        }
-        xm = *(double*)PyArray_GETPTR1(input_minpos, 0);
-        ym = *(double*)PyArray_GETPTR1(input_minpos, 1);
-    }
-    catch (...)
-    {
-        Py_XDECREF(input_minpos);
-        throw;
-    }
-    Py_XDECREF(input_minpos);
-    */
     npy_intp extent_dims[] = { 2, 2, 0 };
     double* extents_data = NULL;
     npy_intp minpos_dims[] = { 2, 0 };
@@ -618,17 +471,13 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     PyArrayObject* extents = NULL;
     PyArrayObject* minpos = NULL;
     bool changed = false;
-/*
-    try
-    {
-*/
+
         extents = (PyArrayObject*)PyArray_SimpleNew
                   (2, extent_dims, PyArray_DOUBLE);
         if (extents == NULL)
         {   
             PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
             return NULL;
-            //throw Py::MemoryError("Could not allocate result array");
         }
         minpos = (PyArrayObject*)PyArray_SimpleNew
                  (1, minpos_dims, PyArray_DOUBLE);
@@ -637,7 +486,6 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
             PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
             Py_DECREF(extents);
             return NULL;
-            //throw Py::MemoryError("Could not allocate result array");
         }
 
         extents_data = (double*)PyArray_DATA(extents);
@@ -688,28 +536,10 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
                    extents_data[3] != y1 ||
                    minpos_data[0]  != xm ||
                    minpos_data[1]  != ym);
-/*
-    }
-    catch (...)
-    {
-        Py_XDECREF(extents);
-        Py_XDECREF(minpos);
-        throw;
-    }
-*/
-    //Py::Tuple result(3);
-    //result[0] = Py::Object((PyObject*) extents);
-    //result[1] = Py::Object((PyObject*) minpos);
-    //result[2] = Py::Int(changed ? 1 : 0);
-    //
-    //Py_XDECREF(extents);
-    //Py_XDECREF(minpos);
-    //return result;
+    
     return Py_BuildValue("(NNi)", extents, minpos, changed ? 1 : 0);
 }
 
-//Py::Object
-//_path_module::get_path_collection_extents(const Py::Tuple& args)
 PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
 {
     PyObject *_master_transform, *_paths, *_transforms, *_offsets, *_offset_trans;
@@ -721,23 +551,9 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         (_master_transform, false);
     agg::trans_affine offset_trans     = py_to_agg_transformation_matrix
         (_offset_trans, false);
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(5);
-
-    //segments, trans, clipbox, colors, linewidths, antialiaseds
-    agg::trans_affine       master_transform = py_to_agg_transformation_matrix(args[0].ptr());
-    Py::SeqBase<Py::Object> paths            = args[1];
-    Py::SeqBase<Py::Object> transforms_obj   = args[2];
-    Py::Object              offsets_obj      = args[3];
-    agg::trans_affine       offset_trans     = py_to_agg_transformation_matrix(args[4].ptr(), false);
-    */
+    
     double x0, y0, x1, y1, xm, ym;
 
-    /*
-    try
-    {
-    */ 
         PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
         if (__paths == NULL) 
         {
@@ -751,8 +567,6 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
             return NULL;
         }
         
-        //offsets = (PyArrayObject*)PyArray_FromObject(
-        //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
         PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
             _offsets, PyArray_DOUBLE, 0, 2);
         if (!offsets ||
@@ -764,18 +578,15 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
             Py_DECREF(__transforms);
             Py_XDECREF(offsets);
             return NULL;
-            //throw Py::ValueError("Offsets array must be Nx2");
         }
 
         PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
         PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
 
         size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
-        //size_t Npaths      = paths.length();
         size_t Noffsets    = PyArray_DIM(offsets, 0);
         size_t N           = std::max(Npaths, Noffsets);
         size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
-        //size_t Ntransforms = std::min(transforms_obj.length(), N);
         size_t i;
 
         // Convert all of the transforms up front
@@ -786,8 +597,6 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         {
             agg::trans_affine trans = py_to_agg_transformation_matrix
                 (transforms_arr[i], false);
-            //agg::trans_affine trans = py_to_agg_transformation_matrix
-            //    (transforms_obj[i].ptr(), false);
             trans *= master_transform;
             transforms.push_back(trans);
         }
@@ -804,7 +613,6 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         if (transforms.size() <= 1 && Npaths == 1)
         {
             PathIterator path(paths_arr[0]);
-            //PathIterator path(paths[0]);
             if (Ntransforms)
             {
                 trans = transforms[0];
@@ -835,7 +643,6 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
             for (i = 0; i < N; ++i)
             {
                 PathIterator path(paths_arr[i % Npaths]);
-                //PathIterator path(paths[i % Npaths]);
                 if (Ntransforms)
                 {
                     trans = transforms[i % Ntransforms];
@@ -856,29 +663,14 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
                 ::get_path_extents(path, trans, &x0, &y0, &x1, &y1, &xm, &ym);
             }
         }
-    /*
-    }
-    catch (...)
-    {
-        Py_XDECREF(offsets);
-        throw;
-    }
-    */
+    
     Py_DECREF(__paths);
     Py_DECREF(__transforms);
     Py_DECREF(offsets);
 
-    //Py::Tuple result(4);
-    //result[0] = Py::Float(x0);
-    //result[1] = Py::Float(y0);
-    //result[2] = Py::Float(x1);
-    //result[3] = Py::Float(y1);
-    //return result;
     return Py_BuildValue("(dddd)", x0, y0, x1, y1);
 }
 
-//Py::Object
-//_path_module::point_in_path_collection(const Py::Tuple& args)
 PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
 {
     double x, y, radius;
@@ -906,8 +698,6 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    //PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
-    //    offsets_obj.ptr(), PyArray_DOUBLE, 0, 2);
     PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
         _offsets, PyArray_DOUBLE, 0, 2);
     if (!offsets ||
@@ -919,39 +709,20 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
         Py_DECREF(__transforms);
         Py_XDECREF(offsets);
         return NULL;
-        //throw Py::ValueError("Offsets array must be Nx2");
     }
 
     bool filled = PyObject_IsTrue(_filled) != 0;
     std::string offset_position(_offset_position);
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(10);
-
-    //segments, trans, clipbox, colors, linewidths, antialiaseds
-    double                  x                = Py::Float(args[0]);
-    double                  y                = Py::Float(args[1]);
-    double                  radius           = Py::Float(args[2]);
-    agg::trans_affine       master_transform = py_to_agg_transformation_matrix(args[3].ptr());
-    Py::SeqBase<Py::Object> paths            = args[4];
-    Py::SeqBase<Py::Object> transforms_obj   = args[5];
-    Py::SeqBase<Py::Object> offsets_obj      = args[6];
-    agg::trans_affine       offset_trans     = py_to_agg_transformation_matrix(args[7].ptr());
-    bool                    filled           = Py::Boolean(args[8]);
-    std::string             offset_position  = Py::String(args[9]).encode("utf-8");
-    */
     bool data_offsets = (offset_position == "data");
 
     PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
     PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
 
     size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
-    //size_t Npaths      = paths.length();
     size_t Noffsets    = PyArray_DIM(offsets, 0);
     size_t N           = std::max(Npaths, Noffsets);
     size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
-    //size_t Ntransforms = std::min(transforms_obj.length(), N);
     size_t i;
 
     // Convert all of the transforms up front
@@ -962,8 +733,6 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     {
         agg::trans_affine trans = py_to_agg_transformation_matrix
                                   (transforms_arr[i], false);
-        //agg::trans_affine trans = py_to_agg_transformation_matrix
-        //                          (transforms_obj[i].ptr(), false);
         trans *= master_transform;
         transforms.push_back(trans);
     }
@@ -972,12 +741,10 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
 
     PyObject* result = PyList_New(0);
     if (result == NULL) goto Done;
-    //Py::List result;
     
     for (i = 0; i < N; ++i)
     {
         PathIterator path(paths_arr[i % Npaths]);
-        //PathIterator path(paths[i % Npaths]);
 
         if (Ntransforms)
         {
@@ -1008,8 +775,6 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
                 Py_DECREF(_i);
                 if (status == -1) goto Fail;
             }
-            //if (::point_in_path(x, y, radius, path, trans))
-            //    result.append(Py::Int((int)i));
         }
         else
         {
@@ -1019,8 +784,6 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
                 Py_DECREF(_i);
                 if (status == -1) goto Fail;
             }
-            //if (::point_on_path(x, y, radius, path, trans))
-            //    result.append(Py::Int((int)i));
         }
     }
 
@@ -1033,8 +796,6 @@ Done:
     Py_DECREF(offsets);
 
     return result;
-    //Py_INCREF(result.ptr());
-    //return result.ptr();
 }
 
 bool
@@ -1063,8 +824,6 @@ path_in_path(PathIterator& a, const agg::trans_affine& atrans,
     return true;
 }
 
-//Py::Object
-//_path_module::path_in_path(const Py::Tuple& args)
 PyObject *_path_in_path(PyObject *self, PyObject *_args)
 {
     PyObject *_a, *_atrans, *_b, *_btrans;
@@ -1077,18 +836,6 @@ PyObject *_path_in_path(PyObject *self, PyObject *_args)
     PathIterator b(_b);
     agg::trans_affine btrans = py_to_agg_transformation_matrix(_btrans, false);
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(4);
-
-    PathIterator a(args[0]);
-    agg::trans_affine atrans = py_to_agg_transformation_matrix(
-        args[1].ptr(), false);
-    PathIterator b(args[2]);
-    agg::trans_affine btrans = py_to_agg_transformation_matrix(
-        args[3].ptr(), false);
-    */
-    //return Py::Int(::path_in_path(a, atrans, b, btrans));
     return PyInt_FromLong(::path_in_path(a, atrans, b, btrans));
 }
 
@@ -1305,8 +1052,6 @@ clip_to_rect(Path& path,
     while (code != agg::path_cmd_stop);
 }
 
-//Py::Object
-//_path_module::clip_path_to_rect(const Py::Tuple &args)
 PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
 {
     PyObject *_path, *_bbox, *_inside;
@@ -1324,20 +1069,6 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(3);
-
-    PathIterator path(args[0]);
-    Py::Object bbox_obj = args[1];
-    bool inside = Py::Boolean(args[2]);
-    
-    double x0, y0, x1, y1;
-    if (!py_convert_bbox(bbox_obj.ptr(), x0, y0, x1, y1))
-    {
-        throw Py::TypeError("Argument 2 to clip_to_rect must be a Bbox object.");
-    }
-    */
     std::vector<Polygon> results;
     typedef agg::conv_curve<PathIterator> curve_t;
     curve_t curve(path);
@@ -1351,12 +1082,8 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
     {
         PyErr_SetString(PyExc_RuntimeError, "Error creating results list");
         return NULL;
-        //throw Py::RuntimeError("Error creating results list");
     }
-    /*
-    try
-    {
-    */
+        
         for (std::vector<Polygon>::const_iterator p = results.begin(); p != results.end(); ++p)
         {
             size_t size = p->size();
@@ -1367,7 +1094,6 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
                 PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
                 Py_DECREF(py_results);
                 return NULL;
-                //throw Py::MemoryError("Could not allocate result array");
             }
 
             double *data = (double *) PyArray_DATA(pyarray);
@@ -1382,30 +1108,11 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
 
             // cannot fail
             PyList_SET_ITEM(py_results, p - results.begin(), (PyObject *)pyarray);
-            /*
-            if (PyList_SetItem(py_results, p - results.begin(), (PyObject *)pyarray) == -1)
-            {
-                PyErr_SetString(PyExc_RuntimeError, "Error creating results list");
-                Py_DECREF(py_results);
-                return NULL;
-                //throw Py::RuntimeError("Error creating results list");
-            }
-            */
         }
-    /*
-    }
-    catch (...)
-    {
-        Py_XDECREF(py_results);
-        throw;
-    }
-    */
-    //return Py::Object(py_results, true);
+    
     return py_results;
 }
 
-//Py::Object
-//_path_module::affine_transform(const Py::Tuple& args)
 PyObject *_affine_transform(PyObject *self, PyObject *_args)
 {
     PyObject *_vertices, *_transform;
@@ -1413,13 +1120,6 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(2);
-
-    Py::Object vertices_obj = args[0];
-    Py::Object transform_obj = args[1];
-    */
     PyArrayObject* vertices = NULL;
     PyArrayObject* transform = NULL;
     PyArrayObject* result = NULL;
@@ -1427,13 +1127,8 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
     int nd;
     size_t n;
     npy_intp dims[2];
-    /*
-    try
-    {
-    */
+        
         vertices = (PyArrayObject*)PyArray_FromObject(_vertices, PyArray_DOUBLE, 1, 2);
-        //vertices = (PyArrayObject*)PyArray_FromObject
-        //           (vertices_obj.ptr(), PyArray_DOUBLE, 1, 2);
         if (!vertices ||
             (PyArray_NDIM(vertices) == 2 && PyArray_DIM(vertices, 0) != 0 &&
              PyArray_DIM(vertices, 1) != 2) ||
@@ -1442,19 +1137,15 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         {
             PyErr_SetString(PyExc_ValueError, "Invalid vertices array.");
             goto Fail;
-            //throw Py::ValueError("Invalid vertices array.");
         }
 
         transform = (PyArrayObject*)PyArray_FromObject(_transform, PyArray_DOUBLE, 2, 2);
-        //transform = (PyArrayObject*) PyArray_FromObject
-        //            (transform_obj.ptr(), PyArray_DOUBLE, 2, 2);
         if (!transform ||
             PyArray_DIM(transform, 0) != 3 ||
             PyArray_DIM(transform, 1) != 3)
         {
             PyErr_SetString(PyExc_ValueError, "Invalid transform.");
             goto Fail;
-            //throw Py::ValueError("Invalid transform.");
         }
 
         double a, b, c, d, e, f;
@@ -1483,13 +1174,10 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
         if (nd == 2) dims[1] = PyArray_DIM(vertices, 1);
         result = (PyArrayObject*)PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
                  
-        //result = (PyArrayObject*)PyArray_SimpleNew
-        //         (PyArray_NDIM(vertices), PyArray_DIMS(vertices), PyArray_DOUBLE);
         if (result == NULL)
         {
             PyErr_SetString(PyExc_MemoryError, "Could not allocate memory for path");
             goto Fail;
-            //throw Py::MemoryError("Could not allocate memory for path");
         }
         if (nd == 2)
         {
@@ -1530,26 +1218,14 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
             *vertex_out++ = a * x + c * y + e;
             *vertex_out++ = b * x + d * y + f;
         }
-    /*
-    }
-    catch (...)
-    {
-        Py_XDECREF(vertices);
-        Py_XDECREF(transform);
-        Py_XDECREF(result);
-        throw;
-    }
-    */
+
 Fail:
     Py_XDECREF(vertices);
     Py_XDECREF(transform);
 
-    //return Py::Object((PyObject*)result, true);
     return (PyObject*)result;
 }
 
-//Py::Object
-//_path_module::count_bboxes_overlapping_bbox(const Py::Tuple& args)
 PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
 {
     PyObject *_bbox, *_bboxes;
@@ -1573,20 +1249,9 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
     PyObject** bboxes = PySequence_Fast_ITEMS(__bboxes);
     size_t num_bboxes = PySequence_Fast_GET_SIZE(__bboxes);
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(2);
-
-    Py::Object              bbox   = args[0];
-    Py::SeqBase<Py::Object> bboxes = args[1];
-    */
     double bx0, by0, bx1, by1;
     long count = 0;
 
-    /*
-    if (py_convert_bbox(bbox.ptr(), ax0, ay0, ax1, ay1))
-    {
-    */
         if (ax1 < ax0)
         {
             std::swap(ax0, ax1);
@@ -1596,12 +1261,9 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
             std::swap(ay0, ay1);
         }
 
-        //size_t num_bboxes = bboxes.size();
         for (size_t i = 0; i < num_bboxes; ++i)
         {
             if (py_convert_bbox(bboxes[i], bx0, by0, bx1, by1))
-            //Py::Object bbox_b = bboxes[i];
-            //if (py_convert_bbox(bbox_b.ptr(), bx0, by0, bx1, by1))
             {
                 if (bx1 < bx0)
                 {
@@ -1624,19 +1286,11 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
                 PyErr_SetString(PyExc_ValueError, "Non-bbox object in bboxes list");
                 Py_DECREF(__bboxes);
                 return NULL;
-                //throw Py::ValueError("Non-bbox object in bboxes list");
             }
         }
-    /*
-    }
-    else
-    {
-        throw Py::ValueError("First argument to count_bboxes_overlapping_bbox must be a Bbox object.");
-    }
-    */
+    
     Py_DECREF(__bboxes);
 
-    //return Py::Int(count);
     return PyInt_FromLong(count);
 }
 
@@ -1703,8 +1357,6 @@ path_intersects_path(PathIterator& p1, PathIterator& p2)
     return false;
 }
 
-//Py::Object
-//_path_module::path_intersects_path(const Py::Tuple& args)
 PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
 {
     PyObject *_p1, *_p2, *_filled = Py_False;
@@ -1715,19 +1367,7 @@ PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
     PathIterator p1(_p1);
     PathIterator p2(_p2);
     bool filled = PyObject_IsTrue(_filled) != 0;
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(2, 3);
-
-    PathIterator p1(args[0]);
-    PathIterator p2(args[1]);
-    bool filled = false;
-
-    if (args.size() == 3)
-    {
-        filled = args[2].isTrue();
-    }
-    */
+    
     bool isect;
     if (!filled)
     {
@@ -1739,14 +1379,11 @@ PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
              || ::path_in_path(p1, agg::trans_affine(), p2, agg::trans_affine())
              || ::path_in_path(p2, agg::trans_affine(), p1, agg::trans_affine());
     }
-    //return Py::Int(isect);
     return PyInt_FromLong(isect);
 }
 
 int
 _add_polygon(PyObject *_polygons, const std::vector<double>& polygon)
-//void
-//_add_polygon(Py::List& polygons, const std::vector<double>& polygon)
 {
     if (polygon.size() == 0)
     {
@@ -1760,18 +1397,14 @@ _add_polygon(PyObject *_polygons, const std::vector<double>& polygon)
     {
         PyErr_SetString(PyExc_MemoryError, "Error creating polygon array");
         return -1;
-        //throw Py::MemoryError("Error creating polygon array");
     }
     double* polygon_data = (double*)PyArray_DATA(polygon_array);
     memcpy(polygon_data, &polygon[0], polygon.size() * sizeof(double));
     int status = PyList_Append(_polygons, (PyObject*)polygon_array);
     Py_DECREF(polygon_array);
     return status;
-    //polygons.append(Py::Object((PyObject*)polygon_array, true));
 }
 
-//Py::Object
-//_path_module::convert_path_to_polygons(const Py::Tuple& args)
 PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
 {
     typedef agg::conv_transform<PathIterator>  transformed_path_t;
@@ -1790,15 +1423,6 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
     PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(4);
-
-    PathIterator path(args[0]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
-    double width = Py::Float(args[2]);
-    double height = Py::Float(args[3]);
-    */
     bool do_clip = width != 0.0 && height != 0.0;
 
     bool simplify = path.should_simplify();
@@ -1811,7 +1435,6 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
 
     PyObject* polygons = PyList_New(0);
     if (polygons == NULL) return NULL;
-    //Py::List polygons;
     vertices_t polygon;
     double x, y;
     unsigned code;
@@ -1845,8 +1468,6 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
     if (_add_polygon(polygons, polygon) == -1) goto Fail;
 
     return polygons;
-    //Py_INCREF(polygons.ptr());
-    //return polygons.ptr();
 
 Fail:
     Py_DECREF(polygons);
@@ -1911,8 +1532,6 @@ _cleanup_path(PathIterator& path, const agg::trans_affine& trans,
     }
 }
 
-//Py::Object
-//_path_module::cleanup_path(const Py::Tuple& args)
 PyObject *_cleanup_path(PyObject *self, PyObject *_args)
 {
     PyObject *_path, *_trans, *_nans, *_clip, *_snap;
@@ -1974,74 +1593,6 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(9);
-
-    PathIterator path(args[0]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
-    bool remove_nans = args[2].isTrue();
-
-    Py::Object clip_obj = args[3];
-    bool do_clip;
-    agg::rect_base<double> clip_rect;
-    if (clip_obj.isNone())
-    {
-        do_clip = false;
-    }
-    else
-    {
-        double x1, y1, x2, y2;
-        Py::Tuple clip_tuple(clip_obj);
-        x1 = Py::Float(clip_tuple[0]);
-        y1 = Py::Float(clip_tuple[1]);
-        x2 = Py::Float(clip_tuple[2]);
-        y2 = Py::Float(clip_tuple[3]);
-        clip_rect.init(x1, y1, x2, y2);
-        do_clip = true;
-    }
-
-    Py::Object snap_obj = args[4];
-    e_snap_mode snap_mode;
-    if (snap_obj.isNone())
-    {
-        snap_mode = SNAP_AUTO;
-    }
-    else if (snap_obj.isTrue())
-    {
-        snap_mode = SNAP_TRUE;
-    }
-    else
-    {
-        snap_mode = SNAP_FALSE;
-    }
-
-    double stroke_width = Py::Float(args[5]);
-
-    bool simplify;
-    Py::Object simplify_obj = args[6];
-    if (simplify_obj.isNone())
-    {
-        simplify = path.should_simplify();
-    }
-    else
-    {
-        simplify = simplify_obj.isTrue();
-    }
-
-    bool return_curves = args[7].isTrue();
-
-    Py::Object sketch_params = args[8];
-    double sketch_scale = 0.0;
-    double sketch_length = 0.0;
-    double sketch_randomness = 0.0;
-    if (sketch_params.ptr() != Py_None) {
-        Py::Tuple sketch(sketch_params);
-        sketch_scale = Py::Float(sketch[0]);
-        sketch_length = Py::Float(sketch[1]);
-        sketch_randomness = Py::Float(sketch[2]);
-    }
-    */
     std::vector<double> vertices;
     std::vector<npy_uint8> codes;
 
@@ -2054,18 +1605,13 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
 
     PyArrayObject* vertices_obj = NULL;
     PyArrayObject* codes_obj = NULL;
-    //Py::Tuple result(2);
-    /*
-    try
-    {
-    */
+        
         vertices_obj = (PyArrayObject*)PyArray_SimpleNew
                        (2, dims, PyArray_DOUBLE);
         if (vertices_obj == NULL)
         {
             PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
             return NULL;
-            //throw Py::MemoryError("Could not allocate result array");
         }
 
         codes_obj = (PyArrayObject*)PyArray_SimpleNew
@@ -2075,30 +1621,14 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
             PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
             Py_DECREF(vertices_obj);
             return NULL;
-            //throw Py::MemoryError("Could not allocate result array");
         }
 
         memcpy(PyArray_DATA(vertices_obj), &vertices[0], sizeof(double) * 2 * length);
         memcpy(PyArray_DATA(codes_obj), &codes[0], sizeof(npy_uint8) * length);
 
-        //result[0] = Py::Object((PyObject*)vertices_obj, true);
-        //result[1] = Py::Object((PyObject*)codes_obj, true);
-    /*
-    }
-    catch (...)
-    {
-        Py_XDECREF(vertices_obj);
-        Py_XDECREF(codes_obj);
-        throw;
-    }
-    */
-
-    //return result;
     return Py_BuildValue("(NN)", vertices_obj, codes_obj);
 }
 
-//Py::Object
-//_path_module::convert_to_svg(const Py::Tuple& args)
 PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
 {
     PyObject *_path, *_trans, *_clip, *_simplify;
@@ -2132,45 +1662,6 @@ PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
         simplify = PyObject_IsTrue(_simplify) != 0;
     }
 
-    /*
-    const Py::Tuple args(_args);
-    args.verify_length(5);
-
-    PathIterator path(args[0]);
-    agg::trans_affine trans = py_to_agg_transformation_matrix(args[1].ptr(), false);
-
-    Py::Object clip_obj = args[2];
-    bool do_clip;
-    agg::rect_base<double> clip_rect(0, 0, 0, 0);
-    if (clip_obj.isNone() || !clip_obj.isTrue())
-    {
-        do_clip = false;
-    }
-    else
-    {
-        double x1, y1, x2, y2;
-        Py::Tuple clip_tuple(clip_obj);
-        x1 = Py::Float(clip_tuple[0]);
-        y1 = Py::Float(clip_tuple[1]);
-        x2 = Py::Float(clip_tuple[2]);
-        y2 = Py::Float(clip_tuple[3]);
-        clip_rect.init(x1, y1, x2, y2);
-        do_clip = true;
-    }
-
-    bool simplify;
-    Py::Object simplify_obj = args[3];
-    if (simplify_obj.isNone())
-    {
-        simplify = path.should_simplify();
-    }
-    else
-    {
-        simplify = simplify_obj.isTrue();
-    }
-
-    int precision = Py::Int(args[4]);
-    */
     char format[64];
     snprintf(format, 64, "%%.%dg %%.%dg", precision, precision);
    
@@ -2227,7 +1718,6 @@ PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
     #endif
     free(buffer);
 
-    //return Py::Object(result, true);
     return result;
 }
 
