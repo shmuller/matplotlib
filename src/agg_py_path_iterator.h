@@ -22,12 +22,8 @@
  */
 class PathIterator
 {
-    /* We hold references to the Python objects, not just the
-       underlying data arrays, so that Python reference counting can
-       work.
-    */
-    Py::Object m_vertices;
-    Py::Object m_codes;
+    PyObject* m_vertices_arr; 
+    PyObject* m_codes_arr;
 
     size_t m_iterator;
     size_t m_total_vertices;
@@ -41,9 +37,75 @@ class PathIterator
 public:
     /* path_obj is an instance of the class Path as defined in path.py */
     inline PathIterator(const Py::Object& path_obj) :
-            m_vertices(), m_codes(), m_iterator(0), m_should_simplify(false),
+            m_iterator(0), m_should_simplify(false),
             m_simplify_threshold(1.0 / 9.0)
     {
+        PyObject* _path = path_obj.ptr();
+
+        PyObject* _vertices = PyObject_GetAttrString(_path, "vertices");
+        if (!_vertices) 
+        {
+            throw;
+        }
+        m_vertices_arr = PyArray_FromObject(_vertices, PyArray_DOUBLE, 2, 2);
+        Py_DECREF(_vertices);
+        if (!m_vertices_arr || PyArray_DIM(m_vertices_arr, 1) != 2)
+        {
+            Py_XDECREF(m_vertices_arr);
+            throw Py::ValueError("Invalid vertices array.");
+        }
+        m_total_vertices = PyArray_DIM(m_vertices_arr, 0);
+
+        PyObject *_codes = PyObject_GetAttrString(_path, "codes");
+        if (!_codes)
+        {
+            Py_DECREF(m_vertices_arr);
+            throw;
+        }
+        if (_codes != Py_None)
+        {
+            m_codes_arr = PyArray_FromObject(_codes, PyArray_UINT8, 1, 1);
+            Py_DECREF(_codes);
+
+            if (!m_codes_arr)
+            {
+                Py_DECREF(m_vertices_arr);
+                throw Py::ValueError("Invalid codes array.");
+            }
+
+            if (PyArray_DIM(m_codes_arr, 0) != m_total_vertices)
+            {
+                Py_DECREF(m_vertices_arr);
+                throw Py::ValueError("Codes array is wrong length");
+            }
+        }
+        else
+        {
+            m_codes_arr = NULL;
+            Py_DECREF(_codes);
+        }
+
+        PyObject* _should_simplify = PyObject_GetAttrString(_path, "should_simplify");
+        if (!_should_simplify)
+        {
+            Py_DECREF(m_vertices_arr);
+            Py_XDECREF(m_codes_arr);
+            throw;
+        }
+        m_should_simplify = PyObject_IsTrue(_should_simplify) != 0;
+        Py_DECREF(_should_simplify);
+
+        PyObject* _simplify_threshold = PyObject_GetAttrString(_path, "simplify_threshold");
+        if (!_simplify_threshold)
+        {
+            Py_DECREF(m_vertices_arr);
+            Py_XDECREF(m_codes_arr);
+            throw;
+        }
+        m_simplify_threshold = PyFloat_AsDouble(_simplify_threshold);
+        Py_DECREF(_simplify_threshold);
+
+        /*
         Py::Object vertices_obj           = path_obj.getAttr("vertices");
         Py::Object codes_obj              = path_obj.getAttr("codes");
         Py::Object should_simplify_obj    = path_obj.getAttr("should_simplify");
@@ -80,11 +142,13 @@ public:
         m_should_simplify    = should_simplify_obj.isTrue();
         m_total_vertices     = PyArray_DIM(m_vertices.ptr(), 0);
         m_simplify_threshold = Py::Float(simplify_threshold_obj);
+        */
     }
 
     ~PathIterator()
     {
-
+        Py_DECREF(m_vertices_arr);
+        Py_XDECREF(m_codes_arr);
     }
 
     inline unsigned vertex(double* x, double* y)
@@ -93,13 +157,13 @@ public:
 
         const size_t idx = m_iterator++;
 
-        char* pair = (char*)PyArray_GETPTR2(m_vertices.ptr(), idx, 0);
+        char* pair = (char*)PyArray_GETPTR2(m_vertices_arr, idx, 0);
         *x = *(double*)pair;
-        *y = *(double*)(pair + PyArray_STRIDE(m_vertices.ptr(), 1));
+        *y = *(double*)(pair + PyArray_STRIDE(m_vertices_arr, 1));
 
-        if (!m_codes.isNone())
+        if (m_codes_arr != NULL)
         {
-            return (unsigned)(*(char *)PyArray_GETPTR1(m_codes.ptr(), idx));
+            return (unsigned)(*(char *)PyArray_GETPTR1(m_codes_arr, idx));
         }
         else
         {
@@ -129,7 +193,7 @@ public:
 
     inline bool has_curves()
     {
-        return !m_codes.isNone();
+        return m_codes_arr != NULL;
     }
 };
 
