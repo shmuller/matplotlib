@@ -472,71 +472,71 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
     PyArrayObject* minpos = NULL;
     bool changed = false;
 
-        extents = (PyArrayObject*)PyArray_SimpleNew
-                  (2, extent_dims, PyArray_DOUBLE);
-        if (extents == NULL)
-        {   
-            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
-            return NULL;
-        }
-        minpos = (PyArrayObject*)PyArray_SimpleNew
-                 (1, minpos_dims, PyArray_DOUBLE);
-        if (minpos == NULL)
-        {
-            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
-            Py_DECREF(extents);
-            return NULL;
-        }
+    extents = (PyArrayObject*)PyArray_SimpleNew
+              (2, extent_dims, PyArray_DOUBLE);
+    if (extents == NULL)
+    {   
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+        return NULL;
+    }
+    minpos = (PyArrayObject*)PyArray_SimpleNew
+             (1, minpos_dims, PyArray_DOUBLE);
+    if (minpos == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+        Py_DECREF(extents);
+        return NULL;
+    }
 
-        extents_data = (double*)PyArray_DATA(extents);
-        minpos_data = (double*)PyArray_DATA(minpos);
+    extents_data = (double*)PyArray_DATA(extents);
+    minpos_data = (double*)PyArray_DATA(minpos);
 
-        if (ignore)
+    if (ignore)
+    {
+        extents_data[0] = std::numeric_limits<double>::infinity();
+        extents_data[1] = std::numeric_limits<double>::infinity();
+        extents_data[2] = -std::numeric_limits<double>::infinity();
+        extents_data[3] = -std::numeric_limits<double>::infinity();
+        minpos_data[0] = std::numeric_limits<double>::infinity();
+        minpos_data[1] = std::numeric_limits<double>::infinity();
+    }
+    else
+    {
+        if (x0 > x1)
         {
             extents_data[0] = std::numeric_limits<double>::infinity();
-            extents_data[1] = std::numeric_limits<double>::infinity();
             extents_data[2] = -std::numeric_limits<double>::infinity();
-            extents_data[3] = -std::numeric_limits<double>::infinity();
-            minpos_data[0] = std::numeric_limits<double>::infinity();
-            minpos_data[1] = std::numeric_limits<double>::infinity();
         }
         else
         {
-            if (x0 > x1)
-            {
-                extents_data[0] = std::numeric_limits<double>::infinity();
-                extents_data[2] = -std::numeric_limits<double>::infinity();
-            }
-            else
-            {
-                extents_data[0] = x0;
-                extents_data[2] = x1;
-            }
-            if (y0 > y1)
-            {
-                extents_data[1] = std::numeric_limits<double>::infinity();
-                extents_data[3] = -std::numeric_limits<double>::infinity();
-            }
-            else
-            {
-                extents_data[1] = y0;
-                extents_data[3] = y1;
-            }
-            minpos_data[0] = xm;
-            minpos_data[1] = ym;
+            extents_data[0] = x0;
+            extents_data[2] = x1;
         }
+        if (y0 > y1)
+        {
+            extents_data[1] = std::numeric_limits<double>::infinity();
+            extents_data[3] = -std::numeric_limits<double>::infinity();
+        }
+        else
+        {
+            extents_data[1] = y0;
+            extents_data[3] = y1;
+        }
+        minpos_data[0] = xm;
+        minpos_data[1] = ym;
+    }
 
-        ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
-                           &extents_data[2], &extents_data[3], &minpos_data[0],
-                           &minpos_data[1]);
+    ::get_path_extents(path, trans, &extents_data[0], &extents_data[1],
+                       &extents_data[2], &extents_data[3], &minpos_data[0],
+                       &minpos_data[1]);
 
-        changed = (extents_data[0] != x0 ||
-                   extents_data[1] != y0 ||
-                   extents_data[2] != x1 ||
-                   extents_data[3] != y1 ||
-                   minpos_data[0]  != xm ||
-                   minpos_data[1]  != ym);
-    
+    changed = (extents_data[0] != x0 ||
+               extents_data[1] != y0 ||
+               extents_data[2] != x1 ||
+               extents_data[3] != y1 ||
+               minpos_data[0]  != xm ||
+               minpos_data[1]  != ym);
+
     return Py_BuildValue("(NNi)", extents, minpos, changed ? 1 : 0);
 }
 
@@ -554,116 +554,116 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
     
     double x0, y0, x1, y1, xm, ym;
 
-        PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
-        if (__paths == NULL) 
+    PyObject* __paths = PySequence_Fast(_paths, "paths must be a sequence");
+    if (__paths == NULL) 
+    {
+        return NULL;
+    }
+
+    PyObject* __transforms = PySequence_Fast(_transforms, "transforms must be a sequence");
+    if (__transforms == NULL) 
+    {
+        Py_DECREF(__paths);
+        return NULL;
+    }
+   
+    PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
+        _offsets, PyArray_DOUBLE, 0, 2);
+    if (!offsets ||
+        (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
+        (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
+    {
+        PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
+        Py_DECREF(__paths);
+        Py_DECREF(__transforms);
+        Py_XDECREF(offsets);
+        return NULL;
+    }
+
+    PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
+    PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
+
+    size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
+    size_t Noffsets    = PyArray_DIM(offsets, 0);
+    size_t N           = std::max(Npaths, Noffsets);
+    size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
+    size_t i;
+
+    // Convert all of the transforms up front
+    typedef std::vector<agg::trans_affine> transforms_t;
+    transforms_t transforms;
+    transforms.reserve(Ntransforms);
+    for (i = 0; i < Ntransforms; ++i)
+    {
+        agg::trans_affine trans = py_to_agg_transformation_matrix
+            (transforms_arr[i], false);
+        trans *= master_transform;
+        transforms.push_back(trans);
+    }
+
+    // The offset each of those and collect the mins/maxs
+    x0 = std::numeric_limits<double>::infinity();
+    y0 = std::numeric_limits<double>::infinity();
+    x1 = -std::numeric_limits<double>::infinity();
+    y1 = -std::numeric_limits<double>::infinity();
+    xm = std::numeric_limits<double>::infinity();
+    ym = std::numeric_limits<double>::infinity();
+    agg::trans_affine trans;
+
+    if (transforms.size() <= 1 && Npaths == 1)
+    {
+        PathIterator path(paths_arr[0]);
+        if (Ntransforms)
         {
-            return NULL;
+            trans = transforms[0];
+        }
+        else
+        {
+            trans = master_transform;
         }
 
-        PyObject* __transforms = PySequence_Fast(_transforms, "transforms must be a sequence");
-        if (__transforms == NULL) 
+        double bx0 = std::numeric_limits<double>::infinity();
+        double by0 = std::numeric_limits<double>::infinity();
+        double bx1 = -std::numeric_limits<double>::infinity();
+        double by1 = -std::numeric_limits<double>::infinity();
+        double bxm = std::numeric_limits<double>::infinity();
+        double bym = std::numeric_limits<double>::infinity();
+
+        ::get_path_extents(path, trans, &bx0, &by0, &bx1, &by1, &bxm, &bym);
+
+        for (i = 0; i < Noffsets; ++i)
         {
-            Py_DECREF(__paths);
-            return NULL;
+            double xo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 0);
+            double yo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 1);
+            offset_trans.transform(&xo, &yo);
+            update_limits(xo + bx0, yo + by0, &x0, &y0, &x1, &y1, &xm, &ym);
+            update_limits(xo + bx1, yo + by1, &x0, &y0, &x1, &y1, &xm, &ym);
         }
-        
-        PyArrayObject* offsets = (PyArrayObject*)PyArray_FromObject(
-            _offsets, PyArray_DOUBLE, 0, 2);
-        if (!offsets ||
-            (PyArray_NDIM(offsets) == 2 && PyArray_DIM(offsets, 1) != 2) ||
-            (PyArray_NDIM(offsets) == 1 && PyArray_DIM(offsets, 0) != 0))
+    } else {
+        for (i = 0; i < N; ++i)
         {
-            PyErr_SetString(PyExc_ValueError, "Offsets array must be Nx2");
-            Py_DECREF(__paths);
-            Py_DECREF(__transforms);
-            Py_XDECREF(offsets);
-            return NULL;
-        }
-
-        PyObject** paths_arr = PySequence_Fast_ITEMS(__paths);
-        PyObject** transforms_arr = PySequence_Fast_ITEMS(__transforms);
-
-        size_t Npaths      = PySequence_Fast_GET_SIZE(__paths);
-        size_t Noffsets    = PyArray_DIM(offsets, 0);
-        size_t N           = std::max(Npaths, Noffsets);
-        size_t Ntransforms = std::min<size_t>(PySequence_Fast_GET_SIZE(__transforms), N);
-        size_t i;
-
-        // Convert all of the transforms up front
-        typedef std::vector<agg::trans_affine> transforms_t;
-        transforms_t transforms;
-        transforms.reserve(Ntransforms);
-        for (i = 0; i < Ntransforms; ++i)
-        {
-            agg::trans_affine trans = py_to_agg_transformation_matrix
-                (transforms_arr[i], false);
-            trans *= master_transform;
-            transforms.push_back(trans);
-        }
-
-        // The offset each of those and collect the mins/maxs
-        x0 = std::numeric_limits<double>::infinity();
-        y0 = std::numeric_limits<double>::infinity();
-        x1 = -std::numeric_limits<double>::infinity();
-        y1 = -std::numeric_limits<double>::infinity();
-        xm = std::numeric_limits<double>::infinity();
-        ym = std::numeric_limits<double>::infinity();
-        agg::trans_affine trans;
-
-        if (transforms.size() <= 1 && Npaths == 1)
-        {
-            PathIterator path(paths_arr[0]);
+            PathIterator path(paths_arr[i % Npaths]);
             if (Ntransforms)
             {
-                trans = transforms[0];
+                trans = transforms[i % Ntransforms];
             }
             else
             {
                 trans = master_transform;
             }
 
-            double bx0 = std::numeric_limits<double>::infinity();
-            double by0 = std::numeric_limits<double>::infinity();
-            double bx1 = -std::numeric_limits<double>::infinity();
-            double by1 = -std::numeric_limits<double>::infinity();
-            double bxm = std::numeric_limits<double>::infinity();
-            double bym = std::numeric_limits<double>::infinity();
-
-            ::get_path_extents(path, trans, &bx0, &by0, &bx1, &by1, &bxm, &bym);
-
-            for (i = 0; i < Noffsets; ++i)
+            if (Noffsets)
             {
                 double xo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 0);
                 double yo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 1);
                 offset_trans.transform(&xo, &yo);
-                update_limits(xo + bx0, yo + by0, &x0, &y0, &x1, &y1, &xm, &ym);
-                update_limits(xo + bx1, yo + by1, &x0, &y0, &x1, &y1, &xm, &ym);
+                trans *= agg::trans_affine_translation(xo, yo);
             }
-        } else {
-            for (i = 0; i < N; ++i)
-            {
-                PathIterator path(paths_arr[i % Npaths]);
-                if (Ntransforms)
-                {
-                    trans = transforms[i % Ntransforms];
-                }
-                else
-                {
-                    trans = master_transform;
-                }
 
-                if (Noffsets)
-                {
-                    double xo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 0);
-                    double yo = *(double*)PyArray_GETPTR2(offsets, i % Noffsets, 1);
-                    offset_trans.transform(&xo, &yo);
-                    trans *= agg::trans_affine_translation(xo, yo);
-                }
-
-                ::get_path_extents(path, trans, &x0, &y0, &x1, &y1, &xm, &ym);
-            }
+            ::get_path_extents(path, trans, &x0, &y0, &x1, &y1, &xm, &ym);
         }
-    
+    }
+ 
     Py_DECREF(__paths);
     Py_DECREF(__transforms);
     Py_DECREF(offsets);
@@ -1084,32 +1084,32 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
         return NULL;
     }
         
-        for (std::vector<Polygon>::const_iterator p = results.begin(); p != results.end(); ++p)
+    for (std::vector<Polygon>::const_iterator p = results.begin(); p != results.end(); ++p)
+    {
+        size_t size = p->size();
+        dims[0] = (npy_intp)size + 1;
+        PyArrayObject* pyarray = (PyArrayObject*)PyArray_SimpleNew(2, dims, PyArray_DOUBLE);
+        if (pyarray == NULL)
         {
-            size_t size = p->size();
-            dims[0] = (npy_intp)size + 1;
-            PyArrayObject* pyarray = (PyArrayObject*)PyArray_SimpleNew(2, dims, PyArray_DOUBLE);
-            if (pyarray == NULL)
-            {
-                PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
-                Py_DECREF(py_results);
-                return NULL;
-            }
-
-            double *data = (double *) PyArray_DATA(pyarray);
-
-            for (size_t i = 0; i < size; ++i)
-            {
-                data[2*i]   = (*p)[i].x;
-                data[2*i+1] = (*p)[i].y;
-            }
-            data[2*size]   = (*p)[0].x;
-            data[2*size+1] = (*p)[0].y;
-
-            // cannot fail
-            PyList_SET_ITEM(py_results, p - results.begin(), (PyObject *)pyarray);
+            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+            Py_DECREF(py_results);
+            return NULL;
         }
-    
+
+        double *data = (double *) PyArray_DATA(pyarray);
+
+        for (size_t i = 0; i < size; ++i)
+        {
+            data[2*i]   = (*p)[i].x;
+            data[2*i+1] = (*p)[i].y;
+        }
+        data[2*size]   = (*p)[0].x;
+        data[2*size+1] = (*p)[0].y;
+
+        // cannot fail
+        PyList_SET_ITEM(py_results, p - results.begin(), (PyObject *)pyarray);
+    }
+
     return py_results;
 }
 
@@ -1128,96 +1128,96 @@ PyObject *_affine_transform(PyObject *self, PyObject *_args)
     size_t n;
     npy_intp dims[2];
         
-        vertices = (PyArrayObject*)PyArray_FromObject(_vertices, PyArray_DOUBLE, 1, 2);
-        if (!vertices ||
-            (PyArray_NDIM(vertices) == 2 && PyArray_DIM(vertices, 0) != 0 &&
-             PyArray_DIM(vertices, 1) != 2) ||
-            (PyArray_NDIM(vertices) == 1 &&
-             PyArray_DIM(vertices, 0) != 2 && PyArray_DIM(vertices, 0) != 0))
+    vertices = (PyArrayObject*)PyArray_FromObject(_vertices, PyArray_DOUBLE, 1, 2);
+    if (!vertices ||
+        (PyArray_NDIM(vertices) == 2 && PyArray_DIM(vertices, 0) != 0 &&
+         PyArray_DIM(vertices, 1) != 2) ||
+        (PyArray_NDIM(vertices) == 1 &&
+         PyArray_DIM(vertices, 0) != 2 && PyArray_DIM(vertices, 0) != 0))
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid vertices array.");
+        goto Fail;
+    }
+
+    transform = (PyArrayObject*)PyArray_FromObject(_transform, PyArray_DOUBLE, 2, 2);
+    if (!transform ||
+        PyArray_DIM(transform, 0) != 3 ||
+        PyArray_DIM(transform, 1) != 3)
+    {
+        PyErr_SetString(PyExc_ValueError, "Invalid transform.");
+        goto Fail;
+    }
+
+    double a, b, c, d, e, f;
+    {
+        size_t stride0 = PyArray_STRIDE(transform, 0);
+        size_t stride1 = PyArray_STRIDE(transform, 1);
+        char* row0 = PyArray_BYTES(transform);
+        char* row1 = row0 + stride0;
+
+        a = *(double*)(row0);
+        row0 += stride1;
+        c = *(double*)(row0);
+        row0 += stride1;
+        e = *(double*)(row0);
+
+        b = *(double*)(row1);
+        row1 += stride1;
+        d = *(double*)(row1);
+        row1 += stride1;
+        f = *(double*)(row1);
+    }
+
+    // PyPy's PyArray_DIMS() is inefficient, avoid where possible
+    nd = PyArray_NDIM(vertices);
+    n = dims[0] = PyArray_DIM(vertices, 0);
+    if (nd == 2) dims[1] = PyArray_DIM(vertices, 1);
+    result = (PyArrayObject*)PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
+             
+    if (result == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate memory for path");
+        goto Fail;
+    }
+    if (nd == 2)
+    {
+        char* vertex_in = PyArray_BYTES(vertices);
+        double* vertex_out = (double*)PyArray_DATA(result);
+        size_t stride0 = PyArray_STRIDE(vertices, 0);
+        size_t stride1 = PyArray_STRIDE(vertices, 1);
+        double x, y;
+        volatile double t0, t1, t;
+
+        for (size_t i = 0; i < n; ++i)
         {
-            PyErr_SetString(PyExc_ValueError, "Invalid vertices array.");
-            goto Fail;
-        }
-
-        transform = (PyArrayObject*)PyArray_FromObject(_transform, PyArray_DOUBLE, 2, 2);
-        if (!transform ||
-            PyArray_DIM(transform, 0) != 3 ||
-            PyArray_DIM(transform, 1) != 3)
-        {
-            PyErr_SetString(PyExc_ValueError, "Invalid transform.");
-            goto Fail;
-        }
-
-        double a, b, c, d, e, f;
-        {
-            size_t stride0 = PyArray_STRIDE(transform, 0);
-            size_t stride1 = PyArray_STRIDE(transform, 1);
-            char* row0 = PyArray_BYTES(transform);
-            char* row1 = row0 + stride0;
-
-            a = *(double*)(row0);
-            row0 += stride1;
-            c = *(double*)(row0);
-            row0 += stride1;
-            e = *(double*)(row0);
-
-            b = *(double*)(row1);
-            row1 += stride1;
-            d = *(double*)(row1);
-            row1 += stride1;
-            f = *(double*)(row1);
-        }
-
-        // PyPy's PyArray_DIMS() is inefficient, avoid where possible
-        nd = PyArray_NDIM(vertices);
-        n = dims[0] = PyArray_DIM(vertices, 0);
-        if (nd == 2) dims[1] = PyArray_DIM(vertices, 1);
-        result = (PyArrayObject*)PyArray_SimpleNew(nd, dims, PyArray_DOUBLE);
-                 
-        if (result == NULL)
-        {
-            PyErr_SetString(PyExc_MemoryError, "Could not allocate memory for path");
-            goto Fail;
-        }
-        if (nd == 2)
-        {
-            char* vertex_in = PyArray_BYTES(vertices);
-            double* vertex_out = (double*)PyArray_DATA(result);
-            size_t stride0 = PyArray_STRIDE(vertices, 0);
-            size_t stride1 = PyArray_STRIDE(vertices, 1);
-            double x, y;
-            volatile double t0, t1, t;
-
-            for (size_t i = 0; i < n; ++i)
-            {
-                x = *(double*)(vertex_in);
-                y = *(double*)(vertex_in + stride1);
-
-                t0 = a * x;
-                t1 = c * y;
-                t = t0 + t1 + e;
-                *(vertex_out++) = t;
-
-                t0 = b * x;
-                t1 = d * y;
-                t = t0 + t1 + f;
-                *(vertex_out++) = t;
-
-                vertex_in += stride0;
-            }
-        }
-        else if (n != 0)
-        {
-            char* vertex_in = PyArray_BYTES(vertices);
-            double* vertex_out = (double*)PyArray_DATA(result);
-            size_t stride0 = PyArray_STRIDE(vertices, 0);
-            double x;
-            double y;
             x = *(double*)(vertex_in);
-            y = *(double*)(vertex_in + stride0);
-            *vertex_out++ = a * x + c * y + e;
-            *vertex_out++ = b * x + d * y + f;
+            y = *(double*)(vertex_in + stride1);
+
+            t0 = a * x;
+            t1 = c * y;
+            t = t0 + t1 + e;
+            *(vertex_out++) = t;
+
+            t0 = b * x;
+            t1 = d * y;
+            t = t0 + t1 + f;
+            *(vertex_out++) = t;
+
+            vertex_in += stride0;
         }
+    }
+    else if (n != 0)
+    {
+        char* vertex_in = PyArray_BYTES(vertices);
+        double* vertex_out = (double*)PyArray_DATA(result);
+        size_t stride0 = PyArray_STRIDE(vertices, 0);
+        double x;
+        double y;
+        x = *(double*)(vertex_in);
+        y = *(double*)(vertex_in + stride0);
+        *vertex_out++ = a * x + c * y + e;
+        *vertex_out++ = b * x + d * y + f;
+    }
 
 Fail:
     Py_XDECREF(vertices);
@@ -1252,43 +1252,43 @@ PyObject *_count_bboxes_overlapping_bbox(PyObject *self, PyObject *_args)
     double bx0, by0, bx1, by1;
     long count = 0;
 
-        if (ax1 < ax0)
-        {
-            std::swap(ax0, ax1);
-        }
-        if (ay1 < ay0)
-        {
-            std::swap(ay0, ay1);
-        }
+    if (ax1 < ax0)
+    {
+        std::swap(ax0, ax1);
+    }
+    if (ay1 < ay0)
+    {
+        std::swap(ay0, ay1);
+    }
 
-        for (size_t i = 0; i < num_bboxes; ++i)
+    for (size_t i = 0; i < num_bboxes; ++i)
+    {
+        if (py_convert_bbox(bboxes[i], bx0, by0, bx1, by1))
         {
-            if (py_convert_bbox(bboxes[i], bx0, by0, bx1, by1))
+            if (bx1 < bx0)
             {
-                if (bx1 < bx0)
-                {
-                    std::swap(bx0, bx1);
-                }
-                if (by1 < by0)
-                {
-                    std::swap(by0, by1);
-                }
-                if (!((bx1 <= ax0) ||
-                      (by1 <= ay0) ||
-                      (bx0 >= ax1) ||
-                      (by0 >= ay1)))
-                {
-                    ++count;
-                }
+                std::swap(bx0, bx1);
             }
-            else
+            if (by1 < by0)
             {
-                PyErr_SetString(PyExc_ValueError, "Non-bbox object in bboxes list");
-                Py_DECREF(__bboxes);
-                return NULL;
+                std::swap(by0, by1);
+            }
+            if (!((bx1 <= ax0) ||
+                  (by1 <= ay0) ||
+                  (bx0 >= ax1) ||
+                  (by0 >= ay1)))
+            {
+                ++count;
             }
         }
-    
+        else
+        {
+            PyErr_SetString(PyExc_ValueError, "Non-bbox object in bboxes list");
+            Py_DECREF(__bboxes);
+            return NULL;
+        }
+    }
+ 
     Py_DECREF(__bboxes);
 
     return PyInt_FromLong(count);
@@ -1606,25 +1606,25 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
     PyArrayObject* vertices_obj = NULL;
     PyArrayObject* codes_obj = NULL;
         
-        vertices_obj = (PyArrayObject*)PyArray_SimpleNew
-                       (2, dims, PyArray_DOUBLE);
-        if (vertices_obj == NULL)
-        {
-            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
-            return NULL;
-        }
+    vertices_obj = (PyArrayObject*)PyArray_SimpleNew
+                   (2, dims, PyArray_DOUBLE);
+    if (vertices_obj == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+        return NULL;
+    }
 
-        codes_obj = (PyArrayObject*)PyArray_SimpleNew
-                    (1, dims, PyArray_UINT8);
-        if (codes_obj == NULL)
-        {
-            PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
-            Py_DECREF(vertices_obj);
-            return NULL;
-        }
+    codes_obj = (PyArrayObject*)PyArray_SimpleNew
+                (1, dims, PyArray_UINT8);
+    if (codes_obj == NULL)
+    {
+        PyErr_SetString(PyExc_MemoryError, "Could not allocate result array");
+        Py_DECREF(vertices_obj);
+        return NULL;
+    }
 
-        memcpy(PyArray_DATA(vertices_obj), &vertices[0], sizeof(double) * 2 * length);
-        memcpy(PyArray_DATA(codes_obj), &codes[0], sizeof(npy_uint8) * length);
+    memcpy(PyArray_DATA(vertices_obj), &vertices[0], sizeof(double) * 2 * length);
+    memcpy(PyArray_DATA(codes_obj), &codes[0], sizeof(npy_uint8) * length);
 
     return Py_BuildValue("(NN)", vertices_obj, codes_obj);
 }
