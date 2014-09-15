@@ -36,7 +36,7 @@ public:
                         bool do_simplify, double sketch_scale,
                         double sketch_length, double sketch_randomness) :
         m_path_obj(path, true),
-        m_path_iter(m_path_obj),
+        m_path_iter(path),
         m_transform(trans),
         m_transformed(m_path_iter, m_transform),
         m_nan_removed(m_transformed, remove_nans, m_path_iter.has_curves()),

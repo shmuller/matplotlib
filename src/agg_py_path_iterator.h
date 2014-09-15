@@ -36,12 +36,10 @@ class PathIterator
 
 public:
     /* path_obj is an instance of the class Path as defined in path.py */
-    inline PathIterator(const Py::Object& path_obj) :
+    inline PathIterator(PyObject* _path) :
             m_iterator(0), m_should_simplify(false),
             m_simplify_threshold(1.0 / 9.0)
     {
-        PyObject* _path = path_obj.ptr();
-
         PyObject* _vertices = PyObject_GetAttrString(_path, "vertices");
         if (!_vertices) 
         {

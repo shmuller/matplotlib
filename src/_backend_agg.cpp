@@ -640,7 +640,7 @@ RendererAgg::render_clippath(const Py::Object& clippath,
         trans *= agg::trans_affine_scaling(1.0, -1.0);
         trans *= agg::trans_affine_translation(0.0, (double)height);
 
-        PathIterator clippath_iter(clippath);
+        PathIterator clippath_iter(clippath.ptr());
         rendererBaseAlphaMask.clear(agg::gray8(0, 0));
         transformed_path_t transformed_clippath(clippath_iter, trans);
         curve_t curved_clippath(transformed_clippath);
@@ -691,7 +691,7 @@ RendererAgg::draw_markers(const Py::Tuple& args)
     trans *= agg::trans_affine_scaling(1.0, -1.0);
     trans *= agg::trans_affine_translation(0.5, (double)height + 0.5);
 
-    PathIterator       marker_path(marker_path_obj);
+    PathIterator       marker_path(marker_path_obj.ptr());
     transformed_path_t marker_path_transformed(marker_path, marker_trans);
     snap_t             marker_path_snapped(marker_path_transformed,
                                            gc.snap_mode,
@@ -699,7 +699,7 @@ RendererAgg::draw_markers(const Py::Tuple& args)
                                            gc.linewidth);
     curve_t            marker_path_curve(marker_path_snapped);
 
-    PathIterator path(path_obj);
+    PathIterator path(path_obj.ptr());
     transformed_path_t path_transformed(path, trans);
     snap_t             path_snapped(path_transformed,
                                     SNAP_FALSE,
@@ -1270,7 +1270,7 @@ void RendererAgg::_draw_path(path_t& path, bool has_clippath,
         typedef agg::conv_curve<hatch_path_trans_t> hatch_path_curve_t;
         typedef agg::conv_stroke<hatch_path_curve_t> hatch_path_stroke_t;
 
-        PathIterator hatch_path(gc.hatchpath);
+        PathIterator hatch_path(gc.hatchpath.ptr());
         agg::trans_affine hatch_trans;
         hatch_trans *= agg::trans_affine_scaling(1.0, -1.0);
         hatch_trans *= agg::trans_affine_translation(0.0, 1.0);
@@ -1430,7 +1430,7 @@ RendererAgg::draw_path(const Py::Tuple& args)
     args.verify_length(3, 4);
 
     GCAgg gc(args[0], dpi);
-    PathIterator path(args[1]);
+    PathIterator path(args[1].ptr());
     agg::trans_affine trans = py_to_agg_transformation_matrix(args[2].ptr());
     Py::Object face_obj;
     if (args.size() == 4)
@@ -1737,7 +1737,7 @@ public:
     inline path_iterator
     operator()(size_t i) const
     {
-        return PathIterator(m_paths[i % m_npaths]);
+        return PathIterator(m_paths[i % m_npaths].ptr());
     }
 };
 

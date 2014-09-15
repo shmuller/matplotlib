@@ -352,7 +352,7 @@ PyObject *_point_in_path(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "dddOO", &x, &y, &r, &_path, &_trans)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     
     if (::point_in_path(x, y, r, path, trans)) {
@@ -373,7 +373,7 @@ PyObject *_points_in_path(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
 
     PyArrayObject* points_array;
@@ -437,7 +437,7 @@ PyObject *_point_on_path(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "dddOO", &x, &y, &r, &_path, &_trans)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
 
     if (::point_on_path(x, y, r, path, trans))
@@ -498,7 +498,7 @@ PyObject *_get_path_extents(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "OO", &_path, &_trans)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     /*
     const Py::Tuple args(_args);
@@ -547,7 +547,7 @@ PyObject *_update_path_extents(PyObject *self, PyObject *_args)
                 &_path, &_trans, &_bbox, &_minpos, &_ignore)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     
     double x0, y0, x1, y1;
@@ -803,7 +803,7 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
 
         if (transforms.size() <= 1 && Npaths == 1)
         {
-            PathIterator path(Py::Object(paths_arr[0], false));
+            PathIterator path(paths_arr[0]);
             //PathIterator path(paths[0]);
             if (Ntransforms)
             {
@@ -834,7 +834,7 @@ PyObject *_get_path_collection_extents(PyObject *self, PyObject *_args)
         } else {
             for (i = 0; i < N; ++i)
             {
-                PathIterator path(Py::Object(paths_arr[i % Npaths], false));
+                PathIterator path(paths_arr[i % Npaths]);
                 //PathIterator path(paths[i % Npaths]);
                 if (Ntransforms)
                 {
@@ -976,7 +976,7 @@ PyObject *_point_in_path_collection(PyObject *self, PyObject *_args)
     
     for (i = 0; i < N; ++i)
     {
-        PathIterator path(Py::Object(paths_arr[i % Npaths], false));
+        PathIterator path(paths_arr[i % Npaths]);
         //PathIterator path(paths[i % Npaths]);
 
         if (Ntransforms)
@@ -1071,10 +1071,10 @@ PyObject *_path_in_path(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "OOOO", &_a, &_atrans, &_b, &_btrans)) {
         return NULL;
     }
-    PathIterator a(Py::Object(_a, false));
+    PathIterator a(_a);
     agg::trans_affine atrans = py_to_agg_transformation_matrix(_atrans, false);
 
-    PathIterator b(Py::Object(_b, false));
+    PathIterator b(_b);
     agg::trans_affine btrans = py_to_agg_transformation_matrix(_btrans, false);
 
     /*
@@ -1313,7 +1313,7 @@ PyObject *_clip_path_to_rect(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "OOO", &_path, &_bbox, &_inside)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     bool inside = PyObject_IsTrue(_inside) != 0;
 
     double x0, y0, x1, y1;
@@ -1712,8 +1712,8 @@ PyObject *_path_intersects_path(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    PathIterator p1(Py::Object(_p1, false));
-    PathIterator p2(Py::Object(_p2, false));
+    PathIterator p1(_p1);
+    PathIterator p2(_p2);
     bool filled = PyObject_IsTrue(_filled) != 0;
     /*
     const Py::Tuple args(_args);
@@ -1787,7 +1787,7 @@ PyObject *_convert_path_to_polygons(PyObject *self, PyObject *_args)
     if (!PyArg_ParseTuple(_args, "OOdd", &_path, &_trans, &width, &height)) {
         return NULL;
     }
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
 
     /*
@@ -1923,7 +1923,7 @@ PyObject *_cleanup_path(PyObject *self, PyObject *_args)
         return NULL;
     }
 
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     bool remove_nans = PyObject_IsTrue(_nans) != 0;
     bool do_clip = _clip != Py_None;
@@ -2108,7 +2108,7 @@ PyObject *_convert_to_svg(PyObject *self, PyObject *_args)
         return NULL;
     }
     
-    PathIterator path(Py::Object(_path, false));
+    PathIterator path(_path);
     agg::trans_affine trans = py_to_agg_transformation_matrix(_trans, false);
     bool do_clip = PyObject_IsTrue(_clip) != 0;
 
