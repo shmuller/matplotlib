@@ -1906,6 +1906,14 @@ static PyMethodDef methods[] = {
 };
 
 
+int add_int_constant(PyObject *d, const char *name, long value) {
+    PyObject *o = PyInt_FromLong(value);
+    if (!o) return -1;
+    int status = PyDict_SetItemString(d, name, o);
+    Py_DECREF(o);
+    return status;
+}
+
 PyMODINIT_FUNC
 #if PY3K
 PyInit__image(void)
@@ -1919,26 +1927,26 @@ init_image(void)
     PyObject *m = Py_InitModule3("_image", methods, "The _image module");
     
     PyObject *d = PyModule_GetDict(m);
-    PyDict_SetItemString(d, "NEAREST", PyInt_FromLong(Image::NEAREST));
-    PyDict_SetItemString(d, "BILINEAR", PyInt_FromLong(Image::BILINEAR));
-    PyDict_SetItemString(d, "BICUBIC", PyInt_FromLong(Image::BICUBIC));
-    PyDict_SetItemString(d, "SPLINE16", PyInt_FromLong(Image::SPLINE16));
-    PyDict_SetItemString(d, "SPLINE36", PyInt_FromLong(Image::SPLINE36));
-    PyDict_SetItemString(d, "HANNING", PyInt_FromLong(Image::HANNING));
-    PyDict_SetItemString(d, "HAMMING", PyInt_FromLong(Image::HAMMING));
-    PyDict_SetItemString(d, "HERMITE", PyInt_FromLong(Image::HERMITE));
-    PyDict_SetItemString(d, "KAISER", PyInt_FromLong(Image::KAISER));
-    PyDict_SetItemString(d, "QUADRIC", PyInt_FromLong(Image::QUADRIC));
-    PyDict_SetItemString(d, "CATROM", PyInt_FromLong(Image::CATROM));
-    PyDict_SetItemString(d, "GAUSSIAN", PyInt_FromLong(Image::GAUSSIAN));
-    PyDict_SetItemString(d, "BESSEL", PyInt_FromLong(Image::BESSEL));
-    PyDict_SetItemString(d, "MITCHELL", PyInt_FromLong(Image::MITCHELL));
-    PyDict_SetItemString(d, "SINC", PyInt_FromLong(Image::SINC));
-    PyDict_SetItemString(d, "LANCZOS", PyInt_FromLong(Image::LANCZOS));
-    PyDict_SetItemString(d, "BLACKMAN", PyInt_FromLong(Image::BLACKMAN));
+    add_int_constant(d, "NEAREST", Image::NEAREST);
+    add_int_constant(d, "BILINEAR", Image::BILINEAR);
+    add_int_constant(d, "BICUBIC", Image::BICUBIC);
+    add_int_constant(d, "SPLINE16", Image::SPLINE16);
+    add_int_constant(d, "SPLINE36", Image::SPLINE36);
+    add_int_constant(d, "HANNING", Image::HANNING);
+    add_int_constant(d, "HAMMING", Image::HAMMING);
+    add_int_constant(d, "HERMITE", Image::HERMITE);
+    add_int_constant(d, "KAISER", Image::KAISER);
+    add_int_constant(d, "QUADRIC", Image::QUADRIC);
+    add_int_constant(d, "CATROM", Image::CATROM);
+    add_int_constant(d, "GAUSSIAN", Image::GAUSSIAN);
+    add_int_constant(d, "BESSEL", Image::BESSEL);
+    add_int_constant(d, "MITCHELL", Image::MITCHELL);
+    add_int_constant(d, "SINC", Image::SINC);
+    add_int_constant(d, "LANCZOS", Image::LANCZOS);
+    add_int_constant(d, "BLACKMAN", Image::BLACKMAN);
     
-    PyDict_SetItemString(d, "ASPECT_FREE", PyInt_FromLong(Image::ASPECT_FREE));
-    PyDict_SetItemString(d, "ASPECT_PRESERVE", PyInt_FromLong(Image::ASPECT_PRESERVE));
+    add_int_constant(d, "ASPECT_FREE", Image::ASPECT_FREE);
+    add_int_constant(d, "ASPECT_PRESERVE", Image::ASPECT_PRESERVE);
     
 #if PY3K
     return m;
