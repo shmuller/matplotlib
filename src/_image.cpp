@@ -1905,52 +1905,41 @@ static PyMethodDef methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-
-int add_int_constant(PyObject *d, const char *name, long value) {
-    PyObject *o = PyInt_FromLong(value);
-    if (!o) return -1;
-    int status = PyDict_SetItemString(d, name, o);
-    Py_DECREF(o);
-    return status;
-}
-
-PyMODINIT_FUNC
-#if PY3K
-PyInit__image(void)
-#else
-init_image(void)
-#endif
+MOD_INIT(_image)
 {
     import_array();
     Image::init_type();
 
-    PyObject *m = Py_InitModule3("_image", methods, "The _image module");
+    PyObject *m;
+    
+    MOD_DEF(m, "_image", methods, "The _image module");
+
+    if (m == NULL) 
+        return MOD_ERROR_VAL;
     
     PyObject *d = PyModule_GetDict(m);
-    add_int_constant(d, "NEAREST", Image::NEAREST);
-    add_int_constant(d, "BILINEAR", Image::BILINEAR);
-    add_int_constant(d, "BICUBIC", Image::BICUBIC);
-    add_int_constant(d, "SPLINE16", Image::SPLINE16);
-    add_int_constant(d, "SPLINE36", Image::SPLINE36);
-    add_int_constant(d, "HANNING", Image::HANNING);
-    add_int_constant(d, "HAMMING", Image::HAMMING);
-    add_int_constant(d, "HERMITE", Image::HERMITE);
-    add_int_constant(d, "KAISER", Image::KAISER);
-    add_int_constant(d, "QUADRIC", Image::QUADRIC);
-    add_int_constant(d, "CATROM", Image::CATROM);
-    add_int_constant(d, "GAUSSIAN", Image::GAUSSIAN);
-    add_int_constant(d, "BESSEL", Image::BESSEL);
-    add_int_constant(d, "MITCHELL", Image::MITCHELL);
-    add_int_constant(d, "SINC", Image::SINC);
-    add_int_constant(d, "LANCZOS", Image::LANCZOS);
-    add_int_constant(d, "BLACKMAN", Image::BLACKMAN);
+    setIfL(d, "NEAREST", Image::NEAREST);
+    setIfL(d, "BILINEAR", Image::BILINEAR);
+    setIfL(d, "BICUBIC", Image::BICUBIC);
+    setIfL(d, "SPLINE16", Image::SPLINE16);
+    setIfL(d, "SPLINE36", Image::SPLINE36);
+    setIfL(d, "HANNING", Image::HANNING);
+    setIfL(d, "HAMMING", Image::HAMMING);
+    setIfL(d, "HERMITE", Image::HERMITE);
+    setIfL(d, "KAISER", Image::KAISER);
+    setIfL(d, "QUADRIC", Image::QUADRIC);
+    setIfL(d, "CATROM", Image::CATROM);
+    setIfL(d, "GAUSSIAN", Image::GAUSSIAN);
+    setIfL(d, "BESSEL", Image::BESSEL);
+    setIfL(d, "MITCHELL", Image::MITCHELL);
+    setIfL(d, "SINC", Image::SINC);
+    setIfL(d, "LANCZOS", Image::LANCZOS);
+    setIfL(d, "BLACKMAN", Image::BLACKMAN);
     
-    add_int_constant(d, "ASPECT_FREE", Image::ASPECT_FREE);
-    add_int_constant(d, "ASPECT_PRESERVE", Image::ASPECT_PRESERVE);
+    setIfL(d, "ASPECT_FREE", Image::ASPECT_FREE);
+    setIfL(d, "ASPECT_PRESERVE", Image::ASPECT_PRESERVE);
     
-#if PY3K
-    return m;
-#endif
+    return MOD_SUCCESS_VAL(m);
 }
 
 
